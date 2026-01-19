@@ -23,7 +23,7 @@ use crate::tools::{diff_specs, generate_code, get_status, parse_spec, query_deps
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 struct JsonRpcRequest {
-    jsonrpc: String,  // Required by JSON-RPC spec, validated by serde
+    jsonrpc: String, // Required by JSON-RPC spec, validated by serde
     id: Option<Value>,
     method: String,
     #[serde(default)]
@@ -96,10 +96,7 @@ impl McpServer {
             "tools/list" => self.handle_tools_list(),
             "tools/call" => self.handle_tools_call(&request.params).await,
             "ping" => Ok(json!({})),
-            _ => Err((
-                -32601,
-                format!("Method not found: {}", request.method),
-            )),
+            _ => Err((-32601, format!("Method not found: {}", request.method))),
         };
 
         Some(match result {
@@ -315,10 +312,7 @@ impl McpServer {
             .and_then(|v| v.as_str())
             .ok_or((-32602, "Missing tool name".to_string()))?;
 
-        let args = params
-            .get("arguments")
-            .cloned()
-            .unwrap_or(json!({}));
+        let args = params.get("arguments").cloned().unwrap_or(json!({}));
 
         let result = match name {
             "oas_parse" => self.call_oas_parse(&args).await,
@@ -354,13 +348,25 @@ impl McpServer {
             .to_string();
 
         let format = args.get("format").and_then(|v| v.as_str());
-        let project_dir = args.get("project_dir").and_then(|v| v.as_str()).map(String::from);
-        let use_cache = args.get("use_cache").and_then(|v| v.as_bool()).unwrap_or(false);
+        let project_dir = args
+            .get("project_dir")
+            .and_then(|v| v.as_str())
+            .map(String::from);
+        let use_cache = args
+            .get("use_cache")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         let ttl_seconds = args.get("ttl_seconds").and_then(|v| v.as_u64());
-        let limit = args.get("limit").and_then(|v| v.as_u64()).map(|v| v as usize);
+        let limit = args
+            .get("limit")
+            .and_then(|v| v.as_u64())
+            .map(|v| v as usize);
         let offset = args.get("offset").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
         let tag = args.get("tag").and_then(|v| v.as_str()).map(String::from);
-        let path_prefix = args.get("path_prefix").and_then(|v| v.as_str()).map(String::from);
+        let path_prefix = args
+            .get("path_prefix")
+            .and_then(|v| v.as_str())
+            .map(String::from);
 
         let input = tools::ParseInput {
             source,
@@ -392,7 +398,10 @@ impl McpServer {
             .ok_or("Missing required parameter: source")?
             .to_string();
 
-        let schema = args.get("schema").and_then(|v| v.as_str()).map(String::from);
+        let schema = args
+            .get("schema")
+            .and_then(|v| v.as_str())
+            .map(String::from);
         let path = args.get("path").and_then(|v| v.as_str()).map(String::from);
         let direction = args.get("direction").and_then(|v| v.as_str());
 
@@ -499,13 +508,21 @@ impl McpServer {
         let schemas: Vec<String> = args
             .get("schemas")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
 
         let endpoints: Vec<String> = args
             .get("endpoints")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
 
         let input = tools::GenerateInput {
@@ -552,7 +569,10 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    info!("Starting OpenAPI Sync MCP Server v{}", env!("CARGO_PKG_VERSION"));
+    info!(
+        "Starting OpenAPI Sync MCP Server v{}",
+        env!("CARGO_PKG_VERSION")
+    );
 
     // Run MCP server
     let server = McpServer::new();
@@ -577,11 +597,8 @@ async fn main() -> anyhow::Result<()> {
         let request: JsonRpcRequest = match serde_json::from_str(&line) {
             Ok(r) => r,
             Err(e) => {
-                let response = JsonRpcResponse::error(
-                    Value::Null,
-                    -32700,
-                    format!("Parse error: {e}"),
-                );
+                let response =
+                    JsonRpcResponse::error(Value::Null, -32700, format!("Parse error: {e}"));
                 let output = serde_json::to_string(&response).unwrap();
                 writeln!(stdout, "{output}")?;
                 stdout.flush()?;

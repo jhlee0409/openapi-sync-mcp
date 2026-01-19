@@ -1,11 +1,11 @@
 //! Type definitions for OAS MCP server
 
-mod openapi;
 mod config;
-mod graph;
 mod error;
+mod graph;
+mod openapi;
 
-pub use openapi::*;
 pub use config::*;
-pub use graph::*;
 pub use error::*;
+pub use graph::*;
+pub use openapi::*;

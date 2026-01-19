@@ -34,11 +34,9 @@ impl CacheManager {
     /// Load cache from file
     pub fn load_cache(&self) -> OasResult<OasCache> {
         let path = self.cache_path();
-        let content = std::fs::read_to_string(&path)
-            .map_err(|_| OasError::CacheNotFound)?;
+        let content = std::fs::read_to_string(&path).map_err(|_| OasError::CacheNotFound)?;
 
-        serde_json::from_str(&content)
-            .map_err(|e| OasError::CacheCorrupted(e.to_string()))
+        serde_json::from_str(&content).map_err(|e| OasError::CacheCorrupted(e.to_string()))
     }
 
     /// Save cache to file
@@ -69,11 +67,9 @@ impl CacheManager {
     #[allow(dead_code)]
     pub fn load_state(&self) -> OasResult<OasState> {
         let path = self.state_path();
-        let content = std::fs::read_to_string(&path)
-            .map_err(|_| OasError::CacheNotFound)?;
+        let content = std::fs::read_to_string(&path).map_err(|_| OasError::CacheNotFound)?;
 
-        serde_json::from_str(&content)
-            .map_err(|e| OasError::CacheCorrupted(e.to_string()))
+        serde_json::from_str(&content).map_err(|e| OasError::CacheCorrupted(e.to_string()))
     }
 
     /// Save state to file
@@ -103,7 +99,12 @@ impl CacheManager {
 
     /// Create cache from parsed spec
     #[allow(dead_code)]
-    pub fn create_cache(&self, spec: &ParsedSpec, source: &str, ttl_seconds: Option<u64>) -> OasCache {
+    pub fn create_cache(
+        &self,
+        spec: &ParsedSpec,
+        source: &str,
+        ttl_seconds: Option<u64>,
+    ) -> OasCache {
         self.create_cache_with_headers(spec, source, ttl_seconds, None)
     }
 
@@ -129,7 +130,12 @@ impl CacheManager {
             meta: CachedMeta {
                 title: Some(spec.metadata.title.clone()),
                 version: Some(spec.metadata.version.clone()),
-                openapi_version: Some(serde_json::to_string(&spec.metadata.openapi_version).unwrap_or_default().trim_matches('"').to_string()),
+                openapi_version: Some(
+                    serde_json::to_string(&spec.metadata.openapi_version)
+                        .unwrap_or_default()
+                        .trim_matches('"')
+                        .to_string(),
+                ),
                 endpoint_count: spec.metadata.endpoint_count,
                 schema_count: spec.metadata.schema_count,
             },
@@ -218,10 +224,7 @@ impl CacheManager {
 
     /// Update HTTP cache info from response headers
     #[allow(dead_code)]
-    pub fn update_http_cache_info(
-        cache: &mut OasCache,
-        headers: &reqwest::header::HeaderMap,
-    ) {
+    pub fn update_http_cache_info(cache: &mut OasCache, headers: &reqwest::header::HeaderMap) {
         if let Some(etag) = headers.get("etag") {
             if let Ok(etag_str) = etag.to_str() {
                 cache.http_cache.etag = Some(etag_str.to_string());

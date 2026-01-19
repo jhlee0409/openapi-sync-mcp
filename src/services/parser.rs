@@ -94,11 +94,9 @@ impl OpenApiParser {
         // 2. Canonicalize and verify the path is valid
         let canonical = path.canonicalize().map_err(|e| match e.kind() {
             std::io::ErrorKind::NotFound => OasError::FileNotFound(path.display().to_string()),
-            _ => OasError::PathTraversal(format!(
-                "Cannot resolve path: {} ({})",
-                path.display(),
-                e
-            )),
+            _ => {
+                OasError::PathTraversal(format!("Cannot resolve path: {} ({})", path.display(), e))
+            }
         })?;
 
         // 3. Ensure canonical path doesn't contain suspicious patterns
@@ -107,25 +105,22 @@ impl OpenApiParser {
             return Err(OasError::PathTraversal(canonical.display().to_string()));
         }
 
-        std::fs::read_to_string(&canonical)
-            .map_err(|e| match e.kind() {
-                std::io::ErrorKind::NotFound => OasError::FileNotFound(path.display().to_string()),
-                std::io::ErrorKind::PermissionDenied => {
-                    OasError::PermissionDenied(path.display().to_string())
-                }
-                _ => OasError::ReadError(e.to_string()),
-            })
+        std::fs::read_to_string(&canonical).map_err(|e| match e.kind() {
+            std::io::ErrorKind::NotFound => OasError::FileNotFound(path.display().to_string()),
+            std::io::ErrorKind::PermissionDenied => {
+                OasError::PermissionDenied(path.display().to_string())
+            }
+            _ => OasError::ReadError(e.to_string()),
+        })
     }
 
     /// Parse content as JSON or YAML
     fn parse_content(content: &str, source: &str) -> OasResult<ParsedSpec> {
         // Try JSON first, then YAML
         let value: serde_json::Value = if content.trim().starts_with('{') {
-            serde_json::from_str(content)
-                .map_err(|e| OasError::InvalidJson(e.to_string()))?
+            serde_json::from_str(content).map_err(|e| OasError::InvalidJson(e.to_string()))?
         } else {
-            serde_yaml::from_str(content)
-                .map_err(|e| OasError::InvalidYaml(e.to_string()))?
+            serde_yaml::from_str(content).map_err(|e| OasError::InvalidYaml(e.to_string()))?
         };
 
         // Detect OpenAPI version
@@ -165,9 +160,9 @@ impl OpenApiParser {
 
     /// Parse Swagger 2.0 spec
     fn parse_swagger2(value: serde_json::Value, source: &str) -> OasResult<ParsedSpec> {
-        let info = value.get("info").ok_or_else(|| {
-            OasError::InvalidOpenApi("Missing 'info' field".to_string())
-        })?;
+        let info = value
+            .get("info")
+            .ok_or_else(|| OasError::InvalidOpenApi("Missing 'info' field".to_string()))?;
 
         let title = info
             .get("title")
@@ -181,7 +176,10 @@ impl OpenApiParser {
             .unwrap_or("0.0.0")
             .to_string();
 
-        let description = info.get("description").and_then(|v| v.as_str()).map(String::from);
+        let description = info
+            .get("description")
+            .and_then(|v| v.as_str())
+            .map(String::from);
 
         // Parse definitions (Swagger 2.0 schemas)
         let schemas = Self::parse_swagger2_definitions(&value);
@@ -232,7 +230,10 @@ impl OpenApiParser {
                     Schema {
                         name: name.clone(),
                         schema_type: Self::parse_schema_type(def),
-                        description: def.get("description").and_then(|v| v.as_str()).map(String::from),
+                        description: def
+                            .get("description")
+                            .and_then(|v| v.as_str())
+                            .map(String::from),
                         refs,
                         hash,
                     },
@@ -255,11 +256,8 @@ impl OpenApiParser {
                 if let Some(path_obj) = path_item.as_object() {
                     for (method, operation) in path_obj {
                         if let Some(http_method) = Self::parse_http_method(method) {
-                            let endpoint = Self::parse_swagger2_operation(
-                                path,
-                                http_method,
-                                operation,
-                            );
+                            let endpoint =
+                                Self::parse_swagger2_operation(path, http_method, operation);
                             endpoints.insert(endpoint.key(), endpoint);
                         }
                     }
@@ -461,9 +459,9 @@ impl OpenApiParser {
         source: &str,
         version: OpenApiVersion,
     ) -> OasResult<ParsedSpec> {
-        let info = value.get("info").ok_or_else(|| {
-            OasError::InvalidOpenApi("Missing 'info' field".to_string())
-        })?;
+        let info = value
+            .get("info")
+            .ok_or_else(|| OasError::InvalidOpenApi("Missing 'info' field".to_string()))?;
 
         let title = info
             .get("title")
@@ -477,7 +475,10 @@ impl OpenApiParser {
             .unwrap_or("0.0.0")
             .to_string();
 
-        let description = info.get("description").and_then(|v| v.as_str()).map(String::from);
+        let description = info
+            .get("description")
+            .and_then(|v| v.as_str())
+            .map(String::from);
 
         // Parse components/schemas
         let schemas = Self::parse_openapi3_schemas(&value);
@@ -529,7 +530,10 @@ impl OpenApiParser {
                         Schema {
                             name: name.clone(),
                             schema_type: Self::parse_schema_type(def),
-                            description: def.get("description").and_then(|v| v.as_str()).map(String::from),
+                            description: def
+                                .get("description")
+                                .and_then(|v| v.as_str())
+                                .map(String::from),
                             refs,
                             hash,
                         },
@@ -550,11 +554,8 @@ impl OpenApiParser {
                 if let Some(path_obj) = path_item.as_object() {
                     for (method, operation) in path_obj {
                         if let Some(http_method) = Self::parse_http_method(method) {
-                            let endpoint = Self::parse_openapi3_operation(
-                                path,
-                                http_method,
-                                operation,
-                            );
+                            let endpoint =
+                                Self::parse_openapi3_operation(path, http_method, operation);
                             endpoints.insert(endpoint.key(), endpoint);
                         }
                     }
@@ -720,21 +721,20 @@ impl OpenApiParser {
 
         if let Some(resp_obj) = operation.get("responses").and_then(|v| v.as_object()) {
             for (status, resp) in resp_obj {
-                let (content_types, schema_ref) = if let Some(content) =
-                    resp.get("content").and_then(|v| v.as_object())
-                {
-                    let types: Vec<String> = content.keys().cloned().collect();
-                    let schema = content
-                        .values()
-                        .next()
-                        .and_then(|c| c.get("schema"))
-                        .and_then(|s| s.get("$ref"))
-                        .and_then(|v| v.as_str())
-                        .map(|r| r.replace("#/components/schemas/", ""));
-                    (types, schema)
-                } else {
-                    (vec![], None)
-                };
+                let (content_types, schema_ref) =
+                    if let Some(content) = resp.get("content").and_then(|v| v.as_object()) {
+                        let types: Vec<String> = content.keys().cloned().collect();
+                        let schema = content
+                            .values()
+                            .next()
+                            .and_then(|c| c.get("schema"))
+                            .and_then(|s| s.get("$ref"))
+                            .and_then(|v| v.as_str())
+                            .map(|r| r.replace("#/components/schemas/", ""));
+                        (types, schema)
+                    } else {
+                        (vec![], None)
+                    };
 
                 responses.insert(
                     status.clone(),
@@ -799,7 +799,10 @@ impl OpenApiParser {
 
         match schema.get("type").and_then(|v| v.as_str()) {
             Some("string") => SchemaType::String {
-                format: schema.get("format").and_then(|v| v.as_str()).map(String::from),
+                format: schema
+                    .get("format")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
                 enum_values: schema.get("enum").and_then(|v| v.as_array()).map(|arr| {
                     arr.iter()
                         .filter_map(|v| v.as_str().map(String::from))
@@ -807,10 +810,16 @@ impl OpenApiParser {
                 }),
             },
             Some("number") => SchemaType::Number {
-                format: schema.get("format").and_then(|v| v.as_str()).map(String::from),
+                format: schema
+                    .get("format")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
             },
             Some("integer") => SchemaType::Integer {
-                format: schema.get("format").and_then(|v| v.as_str()).map(String::from),
+                format: schema
+                    .get("format")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
             },
             Some("boolean") => SchemaType::Boolean,
             Some("array") => {
