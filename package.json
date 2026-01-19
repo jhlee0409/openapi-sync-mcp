@@ -1,0 +1,49 @@
+{
+  "name": "@jhlee0409/openapi-sync-mcp",
+  "version": "0.1.0",
+  "description": "OpenAPI Sync MCP Server - Parse, validate, and generate code from OpenAPI specs",
+  "author": "jhlee0409",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jhlee0409/openapi-sync-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jhlee0409/openapi-sync-mcp/issues"
+  },
+  "homepage": "https://github.com/jhlee0409/openapi-sync-mcp#readme",
+  "keywords": [
+    "mcp",
+    "openapi",
+    "swagger",
+    "code-generation",
+    "typescript",
+    "api",
+    "claude"
+  ],
+  "bin": {
+    "openapi-sync-mcp": "./bin/openapi-sync-mcp.js"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "postinstall": "node scripts/install.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
+}
