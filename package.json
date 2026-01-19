@@ -1,6 +1,6 @@
 {
   "name": "@jhlee0409/openapi-sync-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OpenAPI Sync MCP Server - Parse, validate, and generate code from OpenAPI specs",
   "author": "jhlee0409",
   "license": "MIT",
