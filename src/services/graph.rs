@@ -152,7 +152,11 @@ mod tests {
             },
             endpoints,
             schemas,
-            tags: vec!["users".to_string(), "posts".to_string(), "comments".to_string()],
+            tags: vec![
+                "users".to_string(),
+                "posts".to_string(),
+                "comments".to_string(),
+            ],
             spec_hash: "spec123".to_string(),
             source: "test.yaml".to_string(),
         }

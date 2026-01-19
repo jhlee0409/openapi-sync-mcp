@@ -133,7 +133,8 @@ impl Endpoint {
     pub fn effective_operation_id(&self) -> String {
         self.operation_id.clone().unwrap_or_else(|| {
             let method = self.method.to_string().to_lowercase();
-            let path_parts: Vec<&str> = self.path
+            let path_parts: Vec<&str> = self
+                .path
                 .split('/')
                 .filter(|p| !p.is_empty() && !p.starts_with('{'))
                 .collect();
