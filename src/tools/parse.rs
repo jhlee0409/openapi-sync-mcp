@@ -16,7 +16,7 @@ pub struct ParseInput {
     /// Whether to use cache
     #[serde(default)]
     pub use_cache: bool,
-    /// Cache TTL in seconds (default: 3600 = 1 hour)
+    /// Cache TTL in seconds (default: 86400 = 24 hours)
     pub ttl_seconds: Option<u64>,
     /// Limit number of results (for pagination)
     pub limit: Option<usize>,
@@ -104,14 +104,18 @@ pub async fn parse_spec(input: ParseInput) -> ParseOutput {
             if let Ok(cache) = cache_manager.load_cache() {
                 // Check if cache is still valid
                 let is_valid = if input.source.starts_with("http") {
-                    cache_manager.check_remote_cache(&input.source, &cache).await
+                    cache_manager
+                        .check_remote_cache(&input.source, &cache)
+                        .await
                 } else {
                     cache_manager.check_local_cache(&input.source, &cache)
                 };
 
                 if is_valid {
                     // Parse openapi_version from cache
-                    let openapi_version = cache.meta.openapi_version
+                    let openapi_version = cache
+                        .meta
+                        .openapi_version
                         .as_deref()
                         .and_then(|v| match v {
                             "2.0" => Some(OpenApiVersion::Swagger2),
@@ -138,7 +142,9 @@ pub async fn parse_spec(input: ParseInput) -> ParseOutput {
                         schema_names: None,
                         graph_stats: None,
                         pagination: None,
-                        error: Some("Using cached data. Use use_cache=false to force refresh.".to_string()),
+                        error: Some(
+                            "Using cached data. Use use_cache=false to force refresh.".to_string(),
+                        ),
                     };
                 }
             }

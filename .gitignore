@@ -19,8 +19,8 @@ node_modules/
 npm-debug.log*
 
 # Binary artifacts (downloaded by postinstall)
-/bin/oas-mcp
-/bin/oas-mcp.exe
+/bin/openapi-sync-mcp
+/bin/openapi-sync-mcp.exe
 
 # Build artifacts
 *.tar.gz

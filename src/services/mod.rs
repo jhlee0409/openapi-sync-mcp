@@ -1,11 +1,11 @@
 //! Service implementations for OAS MCP server
 
-mod parser;
-mod graph;
 mod cache;
 mod diff;
+mod graph;
+mod parser;
 
-pub use parser::*;
-pub use graph::*;
 pub use cache::*;
 pub use diff::*;
+pub use graph::*;
+pub use parser::*;

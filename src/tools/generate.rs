@@ -182,9 +182,7 @@ pub async fn generate_code(input: GenerateInput) -> GenerateOutput {
 
     // Generate based on target
     let generated_files = match input.target {
-        GenerateTarget::TypescriptTypes => {
-            generate_typescript_types(&schemas, &input.style)
-        }
+        GenerateTarget::TypescriptTypes => generate_typescript_types(&schemas, &input.style),
         GenerateTarget::TypescriptFetch => {
             let mut files = generate_typescript_types(&schemas, &input.style);
             files.extend(generate_typescript_fetch_client(&endpoints, &input.style));
@@ -204,18 +202,14 @@ pub async fn generate_code(input: GenerateInput) -> GenerateOutput {
             files.push(generate_index_ts_with_hooks());
             files
         }
-        GenerateTarget::RustSerde => {
-            generate_rust_types(&schemas, &input.style)
-        }
+        GenerateTarget::RustSerde => generate_rust_types(&schemas, &input.style),
         GenerateTarget::RustReqwest => {
             let mut files = generate_rust_types(&schemas, &input.style);
             files.extend(generate_rust_reqwest_client(&endpoints, &input.style));
             files.push(generate_rust_mod());
             files
         }
-        GenerateTarget::PythonPydantic => {
-            generate_python_types(&schemas, &input.style)
-        }
+        GenerateTarget::PythonPydantic => generate_python_types(&schemas, &input.style),
         GenerateTarget::PythonHttpx => {
             let mut files = generate_python_types(&schemas, &input.style);
             files.extend(generate_python_httpx_client(&endpoints, &input.style));
@@ -253,29 +247,27 @@ fn simplify_schema(schema: &Schema) -> SimpleSchema {
 
 fn extract_properties(schema_type: &SchemaType) -> Vec<SimpleProperty> {
     match schema_type {
-        SchemaType::Object { properties, required } => {
-            properties
-                .iter()
-                .map(|(name, prop_type)| {
-                    let (base_type, format, is_array, is_ref) = extract_type_info(prop_type);
-                    SimpleProperty {
-                        name: name.clone(),
-                        schema_type: base_type,
-                        format,
-                        required: required.contains(name),
-                        description: None,
-                        is_array,
-                        is_ref,
-                    }
-                })
-                .collect()
-        }
+        SchemaType::Object {
+            properties,
+            required,
+        } => properties
+            .iter()
+            .map(|(name, prop_type)| {
+                let (base_type, format, is_array, is_ref) = extract_type_info(prop_type);
+                SimpleProperty {
+                    name: name.clone(),
+                    schema_type: base_type,
+                    format,
+                    required: required.contains(name),
+                    description: None,
+                    is_array,
+                    is_ref,
+                }
+            })
+            .collect(),
         SchemaType::AllOf { variants } => {
             // Merge all properties from allOf variants
-            variants
-                .iter()
-                .flat_map(extract_properties)
-                .collect()
+            variants.iter().flat_map(extract_properties).collect()
         }
         _ => vec![],
     }
@@ -341,7 +333,9 @@ fn generate_typescript_types(schemas: &[SimpleSchema], style: &CodeStyle) -> Vec
     let mut content = String::new();
 
     if style.generate_docs {
-        content.push_str("/**\n * Auto-generated TypeScript types from OpenAPI spec\n * @generated\n */\n\n");
+        content.push_str(
+            "/**\n * Auto-generated TypeScript types from OpenAPI spec\n * @generated\n */\n\n",
+        );
     }
 
     for schema in schemas {
@@ -354,7 +348,9 @@ fn generate_typescript_types(schemas: &[SimpleSchema], style: &CodeStyle) -> Vec
         let type_name = convert_name(&schema.name, &style.type_naming);
 
         if schema.properties.is_empty() {
-            content.push_str(&format!("export type {type_name} = Record<string, unknown>;\n\n"));
+            content.push_str(&format!(
+                "export type {type_name} = Record<string, unknown>;\n\n"
+            ));
             continue;
         }
 
@@ -383,7 +379,10 @@ fn generate_typescript_types(schemas: &[SimpleSchema], style: &CodeStyle) -> Vec
     }]
 }
 
-fn generate_typescript_fetch_client(endpoints: &[SimpleEndpoint], style: &CodeStyle) -> Vec<GeneratedFile> {
+fn generate_typescript_fetch_client(
+    endpoints: &[SimpleEndpoint],
+    style: &CodeStyle,
+) -> Vec<GeneratedFile> {
     let mut content = String::new();
     let base_url = style.base_url_env.as_deref().unwrap_or("API_BASE_URL");
 
@@ -408,7 +407,8 @@ async function request<T>(path: string, options: RequestInit = {{}}): Promise<T>
   return response.json();
 }}
 
-"#));
+"#
+    ));
 
     for endpoint in endpoints {
         let func_name = convert_name(&endpoint.operation_id, &style.function_naming);
@@ -427,7 +427,10 @@ async function request<T>(path: string, options: RequestInit = {{}}): Promise<T>
             .collect();
 
         if let Some(ref body_schema) = endpoint.request_body_schema {
-            params.push(format!("body: Types.{}", convert_name(body_schema, &style.type_naming)));
+            params.push(format!(
+                "body: Types.{}",
+                convert_name(body_schema, &style.type_naming)
+            ));
         }
 
         if !endpoint.query_params.is_empty() {
@@ -441,7 +444,7 @@ async function request<T>(path: string, options: RequestInit = {{}}): Promise<T>
         for param in &endpoint.path_params {
             path_template = path_template.replace(
                 &format!("{{{param}}}"),
-                &format!("${{{}}}", convert_name(param, &style.property_naming))
+                &format!("${{{}}}", convert_name(param, &style.property_naming)),
             );
         }
 
@@ -469,8 +472,14 @@ async function request<T>(path: string, options: RequestInit = {{}}): Promise<T>
 }}
 
 "#,
-            func_name, params_str, return_type, return_type,
-            path_template, query_str, endpoint.method, body_str
+            func_name,
+            params_str,
+            return_type,
+            return_type,
+            path_template,
+            query_str,
+            endpoint.method,
+            body_str
         ));
     }
 
@@ -481,7 +490,10 @@ async function request<T>(path: string, options: RequestInit = {{}}): Promise<T>
     }]
 }
 
-fn generate_typescript_axios_client(endpoints: &[SimpleEndpoint], style: &CodeStyle) -> Vec<GeneratedFile> {
+fn generate_typescript_axios_client(
+    endpoints: &[SimpleEndpoint],
+    style: &CodeStyle,
+) -> Vec<GeneratedFile> {
     let mut content = String::new();
     let base_url = style.base_url_env.as_deref().unwrap_or("API_BASE_URL");
 
@@ -494,7 +506,8 @@ const api = axios.create({{
   headers: {{ 'Content-Type': 'application/json' }},
 }});
 
-"#));
+"#
+    ));
 
     for endpoint in endpoints {
         let func_name = convert_name(&endpoint.operation_id, &style.function_naming);
@@ -512,7 +525,10 @@ const api = axios.create({{
             .collect();
 
         if let Some(ref body_schema) = endpoint.request_body_schema {
-            params.push(format!("body: Types.{}", convert_name(body_schema, &style.type_naming)));
+            params.push(format!(
+                "body: Types.{}",
+                convert_name(body_schema, &style.type_naming)
+            ));
         }
 
         let params_str = params.join(", ");
@@ -521,12 +537,16 @@ const api = axios.create({{
         for param in &endpoint.path_params {
             path_template = path_template.replace(
                 &format!("{{{param}}}"),
-                &format!("${{{}}}", convert_name(param, &style.property_naming))
+                &format!("${{{}}}", convert_name(param, &style.property_naming)),
             );
         }
 
         let method = endpoint.method.to_lowercase();
-        let data_arg = if endpoint.request_body_schema.is_some() { ", body" } else { "" };
+        let data_arg = if endpoint.request_body_schema.is_some() {
+            ", body"
+        } else {
+            ""
+        };
 
         if style.generate_docs {
             if let Some(ref summary) = endpoint.summary {
@@ -551,7 +571,10 @@ const api = axios.create({{
     }]
 }
 
-fn generate_react_query_hooks(endpoints: &[SimpleEndpoint], style: &CodeStyle) -> Vec<GeneratedFile> {
+fn generate_react_query_hooks(
+    endpoints: &[SimpleEndpoint],
+    style: &CodeStyle,
+) -> Vec<GeneratedFile> {
     let mut content = String::new();
 
     content.push_str(r#"import { useQuery, useMutation, UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
@@ -570,7 +593,10 @@ import type * as Types from './types';
             .map(|s| format!("Types.{}", convert_name(s, &style.type_naming)))
             .unwrap_or_else(|| "void".to_string());
 
-        let is_mutation = matches!(endpoint.method.as_str(), "POST" | "PUT" | "PATCH" | "DELETE");
+        let is_mutation = matches!(
+            endpoint.method.as_str(),
+            "POST" | "PUT" | "PATCH" | "DELETE"
+        );
 
         if is_mutation {
             let input_type = endpoint
@@ -626,7 +652,8 @@ fn generate_index_ts() -> GeneratedFile {
 fn generate_index_ts_with_hooks() -> GeneratedFile {
     GeneratedFile {
         path: "index.ts".to_string(),
-        content: "export * from './types';\nexport * from './client';\nexport * from './hooks';\n".to_string(),
+        content: "export * from './types';\nexport * from './client';\nexport * from './hooks';\n"
+            .to_string(),
         file_type: FileType::Index,
     }
 }
@@ -674,10 +701,14 @@ fn generate_rust_types(schemas: &[SimpleSchema], style: &CodeStyle) -> Vec<Gener
     }]
 }
 
-fn generate_rust_reqwest_client(endpoints: &[SimpleEndpoint], style: &CodeStyle) -> Vec<GeneratedFile> {
+fn generate_rust_reqwest_client(
+    endpoints: &[SimpleEndpoint],
+    style: &CodeStyle,
+) -> Vec<GeneratedFile> {
     let mut content = String::new();
 
-    content.push_str(r#"//! Auto-generated API client from OpenAPI spec
+    content.push_str(
+        r#"//! Auto-generated API client from OpenAPI spec
 
 use reqwest::Client;
 use super::types::*;
@@ -695,7 +726,8 @@ impl ApiClient {
         }
     }
 
-"#);
+"#,
+    );
 
     for endpoint in endpoints {
         let func_name = to_snake_case(&endpoint.operation_id);
@@ -718,16 +750,28 @@ impl ApiClient {
 
         let params_str = params.join(", ");
 
-        let format_args: Vec<String> = endpoint.path_params.iter().map(|p| to_snake_case(p)).collect();
+        let format_args: Vec<String> = endpoint
+            .path_params
+            .iter()
+            .map(|p| to_snake_case(p))
+            .collect();
 
         let path_expr = if format_args.is_empty() {
             format!("\"{}\"", endpoint.path)
         } else {
-            format!("&format!(\"{}\", {})", endpoint.path, format_args.join(", "))
+            format!(
+                "&format!(\"{}\", {})",
+                endpoint.path,
+                format_args.join(", ")
+            )
         };
 
         let method = endpoint.method.to_lowercase();
-        let body_call = if endpoint.request_body_schema.is_some() { ".json(body)" } else { "" };
+        let body_call = if endpoint.request_body_schema.is_some() {
+            ".json(body)"
+        } else {
+            ""
+        };
 
         if style.generate_docs {
             if let Some(ref summary) = endpoint.summary {
@@ -760,7 +804,8 @@ impl ApiClient {
 fn generate_rust_mod() -> GeneratedFile {
     GeneratedFile {
         path: "mod.rs".to_string(),
-        content: "pub mod types;\npub mod client;\n\npub use types::*;\npub use client::*;\n".to_string(),
+        content: "pub mod types;\npub mod client;\n\npub use types::*;\npub use client::*;\n"
+            .to_string(),
         file_type: FileType::Index,
     }
 }
@@ -771,14 +816,18 @@ fn generate_python_types(schemas: &[SimpleSchema], style: &CodeStyle) -> Vec<Gen
     let mut content = String::new();
 
     content.push_str("\"\"\"Auto-generated Python types from OpenAPI spec\"\"\"\n\n");
-    content.push_str("from typing import Optional, List, Any\nfrom pydantic import BaseModel, Field\n\n");
+    content.push_str(
+        "from typing import Optional, List, Any\nfrom pydantic import BaseModel, Field\n\n",
+    );
 
     for schema in schemas {
         let class_name = to_pascal_case(&schema.name);
 
         if style.generate_docs {
             if let Some(desc) = &schema.description {
-                content.push_str(&format!("\nclass {class_name}(BaseModel):\n    \"\"\"{desc}\"\"\"\n"));
+                content.push_str(&format!(
+                    "\nclass {class_name}(BaseModel):\n    \"\"\"{desc}\"\"\"\n"
+                ));
             } else {
                 content.push_str(&format!("\nclass {class_name}(BaseModel):\n"));
             }
@@ -814,10 +863,14 @@ fn generate_python_types(schemas: &[SimpleSchema], style: &CodeStyle) -> Vec<Gen
     }]
 }
 
-fn generate_python_httpx_client(endpoints: &[SimpleEndpoint], style: &CodeStyle) -> Vec<GeneratedFile> {
+fn generate_python_httpx_client(
+    endpoints: &[SimpleEndpoint],
+    style: &CodeStyle,
+) -> Vec<GeneratedFile> {
     let mut content = String::new();
 
-    content.push_str(r#""""Auto-generated API client from OpenAPI spec"""
+    content.push_str(
+        r#""""Auto-generated API client from OpenAPI spec"""
 
 import httpx
 from typing import Optional
@@ -832,7 +885,8 @@ class ApiClient:
     async def close(self):
         await self.client.aclose()
 
-"#);
+"#,
+    );
 
     for endpoint in endpoints {
         let func_name = to_snake_case(&endpoint.operation_id);
@@ -856,16 +910,24 @@ class ApiClient:
         let params_str = params.join(", ");
         let path_template = &endpoint.path;
         let method = endpoint.method.to_lowercase();
-        let json_arg = if endpoint.request_body_schema.is_some() { ", json=body.model_dump()" } else { "" };
+        let json_arg = if endpoint.request_body_schema.is_some() {
+            ", json=body.model_dump()"
+        } else {
+            ""
+        };
 
         if style.generate_docs {
             if let Some(ref summary) = endpoint.summary {
                 content.push_str(&format!("    async def {func_name}({params_str}) -> {return_type}:\n        \"\"\"{summary}\"\"\"\n"));
             } else {
-                content.push_str(&format!("    async def {func_name}({params_str}) -> {return_type}:\n"));
+                content.push_str(&format!(
+                    "    async def {func_name}({params_str}) -> {return_type}:\n"
+                ));
             }
         } else {
-            content.push_str(&format!("    async def {func_name}({params_str}) -> {return_type}:\n"));
+            content.push_str(&format!(
+                "    async def {func_name}({params_str}) -> {return_type}:\n"
+            ));
         }
 
         content.push_str(&format!(

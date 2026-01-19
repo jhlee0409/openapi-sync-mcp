@@ -1,4 +1,5 @@
 //! Configuration types for OAS MCP server
+#![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -236,7 +237,7 @@ pub struct DetectedPatterns {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ProjectStructure {
-    Fsd,          // Feature-Sliced Design
+    Fsd, // Feature-Sliced Design
     FeatureBased,
     Flat,
     ServiceBased,

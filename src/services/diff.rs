@@ -101,11 +101,7 @@ impl DiffEngine {
                 }
                 ChangeType::Modified(changes) => {
                     let affected = graph
-                        .map(|g| {
-                            g.get_affected_paths(name)
-                                .into_iter()
-                                .collect::<Vec<_>>()
-                        })
+                        .map(|g| g.get_affected_paths(name).into_iter().collect::<Vec<_>>())
                         .unwrap_or_default();
 
                     diff.modified_schemas.push(SchemaChange {
@@ -194,9 +190,9 @@ impl DiffEngine {
                 .schema_refs
                 .iter()
                 .filter(|s| {
-                    schema_changes.get(*s).is_some_and(|c| {
-                        matches!(c, ChangeType::Modified(_))
-                    })
+                    schema_changes
+                        .get(*s)
+                        .is_some_and(|c| matches!(c, ChangeType::Modified(_)))
                 })
                 .cloned()
                 .collect();
@@ -294,16 +290,8 @@ impl DiffEngine {
         }
 
         // Compare parameters
-        let old_params: HashMap<_, _> = old
-            .parameters
-            .iter()
-            .map(|p| (&p.name, p))
-            .collect();
-        let new_params: HashMap<_, _> = new
-            .parameters
-            .iter()
-            .map(|p| (&p.name, p))
-            .collect();
+        let old_params: HashMap<_, _> = old.parameters.iter().map(|p| (&p.name, p)).collect();
+        let new_params: HashMap<_, _> = new.parameters.iter().map(|p| (&p.name, p)).collect();
 
         for (name, param) in &new_params {
             if !old_params.contains_key(name) && param.required {
