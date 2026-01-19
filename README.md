@@ -1,88 +1,84 @@
 # OpenAPI Sync MCP
 
-A high-performance MCP (Model Context Protocol) server for parsing, validating, and generating code from OpenAPI specifications.
+[![CI](https://github.com/jhlee0409/openapi-sync-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/jhlee0409/openapi-sync-mcp/actions/workflows/ci.yml)
+[![MCP](https://img.shields.io/badge/MCP-2025--11--25-blue)](https://modelcontextprotocol.io)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Built with Rust for speed and reliability.
+A high-performance MCP server for OpenAPI specifications. Parse, diff, track dependencies, and generate code - all from your AI assistant.
 
-## Features
+**Built with Rust** for speed and minimal resource usage.
 
-- **Parse OpenAPI specs** - Support for OpenAPI 3.x and Swagger 2.0
-- **Dependency tracking** - Find affected paths when schemas change
-- **Diff detection** - Compare spec versions with breaking change detection
-- **Code generation** - Generate TypeScript, Rust, or Python code
-- **Smart caching** - Efficient caching with ETag/Last-Modified support
+## Why This MCP?
 
-## Installation
+| Feature | Benefit |
+|---------|---------|
+| **Dependency Graph** | Know exactly which endpoints break when you change a schema |
+| **Smart Diff** | Detect breaking changes before they hit production |
+| **Paginated Parsing** | Handle massive specs without overwhelming context |
+| **24h Cache** | Fast repeated queries with HTTP cache support (ETag/Last-Modified) |
+| **Multi-target Codegen** | TypeScript, Rust, Python from one spec |
 
-### npm (Recommended)
+## Quick Start
+
+### 1. Install
 
 ```bash
+# npm (recommended)
 npm install -g @jhlee0409/openapi-sync-mcp
-```
 
-### Cargo (Rust users)
-
-```bash
+# or Cargo
 cargo install openapi-sync-mcp
+
+# or download binary from GitHub Releases
 ```
 
-### Manual download
+### 2. Configure Claude Code
 
-Download the appropriate binary from [GitHub Releases](https://github.com/jhlee0409/openapi-sync-mcp/releases).
-
-## Usage with Claude Code
-
-Add to your Claude Code MCP settings (`~/.claude/settings.json`):
+Add to `~/.claude/settings.json`:
 
 ```json
 {
   "mcpServers": {
     "oas": {
-      "command": "openapi-sync-mcp",
-      "args": []
+      "command": "openapi-sync-mcp"
     }
   }
 }
 ```
 
-Or if installed via npm:
+### 3. Use It
 
-```json
-{
-  "mcpServers": {
-    "oas": {
-      "command": "npx",
-      "args": ["@jhlee0409/openapi-sync-mcp"]
-    }
-  }
-}
+```
+You: "Parse the OpenAPI spec at https://petstore3.swagger.io/api/v3/openapi.json"
+You: "What endpoints would break if I change the Pet schema?"
+You: "Generate TypeScript types for User and Order schemas"
 ```
 
-## MCP Tools
+## Tools
 
-### `oas_parse`
-
-Parse OpenAPI spec with pagination support.
+### `oas_parse` - Parse OpenAPI Spec
 
 ```json
 {
   "source": "https://api.example.com/openapi.json",
-  "format": "summary",
-  "use_cache": true
+  "format": "summary"
 }
 ```
 
-**Formats:**
-- `summary` - Metadata only (default)
-- `endpoints-list` - Endpoint names only
-- `schemas-list` - Schema names only
-- `endpoints` - Paginated endpoint details
-- `schemas` - Paginated schema details
-- `full` - Everything (paginated)
+| Format | Description | Use Case |
+|--------|-------------|----------|
+| `summary` | Metadata only (default) | Quick overview |
+| `endpoints-list` | Endpoint names | Discover available APIs |
+| `schemas-list` | Schema names | Discover data models |
+| `endpoints` | Paginated details | Deep dive into APIs |
+| `schemas` | Paginated details | Deep dive into models |
+| `full` | Everything | Complete analysis |
 
-### `oas_deps`
+**Pagination:** Use `limit` and `offset` for large specs.
 
-Query dependency graph to find affected paths when schema changes.
+### `oas_deps` - Dependency Graph
+
+Find what breaks when a schema changes:
 
 ```json
 {
@@ -92,9 +88,12 @@ Query dependency graph to find affected paths when schema changes.
 }
 ```
 
-### `oas_diff`
+**Directions:**
+- `downstream` - What uses this schema?
+- `upstream` - What does this schema depend on?
+- `both` - Full dependency tree
 
-Compare two OpenAPI spec versions.
+### `oas_diff` - Compare Versions
 
 ```json
 {
@@ -104,20 +103,21 @@ Compare two OpenAPI spec versions.
 }
 ```
 
-### `oas_status`
+Detects:
+- Added/removed endpoints
+- Changed request/response schemas
+- Breaking changes (removed fields, type changes)
 
-Get cached spec status without fetching.
+### `oas_status` - Cache Status
 
 ```json
 {
-  "project_dir": "/path/to/project",
+  "project_dir": ".",
   "check_remote": true
 }
 ```
 
-### `oas_generate`
-
-Generate code from OpenAPI spec.
+### `oas_generate` - Code Generation
 
 ```json
 {
@@ -131,54 +131,146 @@ Generate code from OpenAPI spec.
 ```
 
 **Targets:**
-- `typescript-types` - TypeScript type definitions
-- `typescript-fetch` - Fetch-based API client
-- `typescript-axios` - Axios-based API client
-- `typescript-react-query` - React Query hooks
-- `rust-serde` - Rust types with serde
-- `rust-reqwest` - Rust reqwest client
-- `python-pydantic` - Python Pydantic models
-- `python-httpx` - Python httpx client
 
-## Building from Source
+| Target | Output |
+|--------|--------|
+| `typescript-types` | Type definitions |
+| `typescript-fetch` | Fetch API client |
+| `typescript-axios` | Axios client |
+| `typescript-react-query` | React Query hooks |
+| `rust-serde` | Serde structs |
+| `rust-reqwest` | Reqwest client |
+| `python-pydantic` | Pydantic models |
+| `python-httpx` | HTTPX client |
+
+## Installation Options
+
+### npm (Recommended)
 
 ```bash
-# Clone the repository
+npm install -g @jhlee0409/openapi-sync-mcp
+```
+
+### Cargo
+
+```bash
+cargo install openapi-sync-mcp
+```
+
+### Binary Download
+
+Download from [GitHub Releases](https://github.com/jhlee0409/openapi-sync-mcp/releases):
+
+| Platform | Binary |
+|----------|--------|
+| macOS (Apple Silicon) | `openapi-sync-mcp-aarch64-apple-darwin` |
+| macOS (Intel) | `openapi-sync-mcp-x86_64-apple-darwin` |
+| Linux (x64) | `openapi-sync-mcp-x86_64-unknown-linux-gnu` |
+| Linux (ARM64) | `openapi-sync-mcp-aarch64-unknown-linux-gnu` |
+| Windows | `openapi-sync-mcp-x86_64-pc-windows-msvc.exe` |
+
+### Build from Source
+
+```bash
 git clone https://github.com/jhlee0409/openapi-sync-mcp
 cd openapi-sync-mcp
-
-# Build release binary
 cargo build --release
-
-# Binary will be at target/release/openapi-sync-mcp
+# Binary: target/release/openapi-sync-mcp
 ```
 
-## Development
+## Configuration Examples
 
-```bash
-# Run tests
-cargo test
+### Claude Code
 
-# Check formatting
-cargo fmt --check
-
-# Run clippy
-cargo clippy
-
-# Run in development mode
-cargo run
+```json
+{
+  "mcpServers": {
+    "oas": {
+      "command": "openapi-sync-mcp"
+    }
+  }
+}
 ```
+
+### Claude Code (npx)
+
+```json
+{
+  "mcpServers": {
+    "oas": {
+      "command": "npx",
+      "args": ["@jhlee0409/openapi-sync-mcp"]
+    }
+  }
+}
+```
+
+### Cursor / Continue
+
+```json
+{
+  "mcpServers": {
+    "oas": {
+      "command": "/path/to/openapi-sync-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+## Troubleshooting
+
+### "Server not responding"
+
+1. Check if binary is executable: `chmod +x openapi-sync-mcp`
+2. Test manually: `echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | openapi-sync-mcp`
+
+### "Parse error" on remote specs
+
+1. Check URL is accessible: `curl -I <url>`
+2. Some APIs require auth headers - currently not supported for remote specs
+
+### Cache issues
+
+Cache files are stored in project directory:
+- `.openapi-sync.cache.json` - Spec cache (24h TTL)
+
+Delete to force refresh, or use `use_cache: false`.
+
+## Protocol
+
+- **MCP Version:** 2025-11-25
+- **Transport:** stdio (JSON-RPC 2.0)
+- **Capabilities:** tools, resources, prompts
 
 ## Error Codes
 
 | Code | Category | Description |
 |------|----------|-------------|
 | E1xx | Network | Connection, timeout, HTTP errors |
-| E2xx | Parse | JSON, YAML, OpenAPI validation errors |
+| E2xx | Parse | JSON, YAML, OpenAPI validation |
 | E3xx | File System | File not found, permission denied |
-| E4xx | Code Generation | Template, pattern detection errors |
-| E5xx | Configuration | Config not found, invalid config |
-| E6xx | Cache | Cache not found, corrupted |
+| E4xx | Code Generation | Template, pattern errors |
+| E5xx | Configuration | Invalid config |
+| E6xx | Cache | Cache corrupted |
+
+## Development
+
+```bash
+cargo test          # Run tests
+cargo fmt --check   # Check formatting
+cargo clippy        # Lint
+cargo run           # Run locally
+```
+
+## Contributing
+
+Contributions welcome! Please:
+
+1. Fork the repo
+2. Create a feature branch
+3. Run `cargo fmt && cargo clippy`
+4. Open a PR
 
 ## License
 
@@ -186,4 +278,4 @@ MIT
 
 ## Related
 
-- [claude-plugins](https://github.com/jhlee0409/claude-plugins) - Plugin commands (`/oas:*`) for OpenAPI Sync MCP
+- [claude-plugins](https://github.com/jhlee0409/claude-plugins) - Plugin commands (`/oas:*`) for enhanced workflow
