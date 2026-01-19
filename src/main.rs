@@ -70,6 +70,20 @@ impl JsonRpcResponse {
             }),
         }
     }
+
+    #[allow(dead_code)]
+    fn error_with_data(id: Value, code: i32, message: String, data: Value) -> Self {
+        Self {
+            jsonrpc: "2.0".to_string(),
+            id,
+            result: None,
+            error: Some(JsonRpcError {
+                code,
+                message,
+                data: Some(data),
+            }),
+        }
+    }
 }
 
 // ===== MCP Protocol Handler =====
@@ -107,9 +121,11 @@ impl McpServer {
 
     fn handle_initialize(&self, _params: &Value) -> Result<Value, (i32, String)> {
         Ok(json!({
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": "2025-11-25",
             "capabilities": {
-                "tools": {}
+                "tools": {},
+                "resources": {},
+                "prompts": {}
             },
             "serverInfo": {
                 "name": "openapi-sync-mcp",
