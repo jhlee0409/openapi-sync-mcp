@@ -16,7 +16,7 @@ pub struct ParseInput {
     /// Whether to use cache
     #[serde(default)]
     pub use_cache: bool,
-    /// Cache TTL in seconds (default: 3600 = 1 hour)
+    /// Cache TTL in seconds (default: 86400 = 24 hours)
     pub ttl_seconds: Option<u64>,
     /// Limit number of results (for pagination)
     pub limit: Option<usize>,
