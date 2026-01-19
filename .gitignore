@@ -1,0 +1,31 @@
+# Rust
+/target/
+**/*.rs.bk
+# Note: Cargo.lock is committed for applications (not libraries)
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# npm
+node_modules/
+*.log
+npm-debug.log*
+
+# Binary artifacts (downloaded by postinstall)
+/bin/oas-mcp
+/bin/oas-mcp.exe
+
+# Build artifacts
+*.tar.gz
+*.zip
+
+# Test fixtures with sensitive data
+*.local.json
+*.local.yaml
