@@ -1,6 +1,6 @@
 [package]
 name = "openapi-sync-mcp"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "OpenAPI Sync MCP Server - parse, validate, and generate code from OpenAPI specs"
 authors = ["Jack Lee <jhlee0409@gmail.com>"]
