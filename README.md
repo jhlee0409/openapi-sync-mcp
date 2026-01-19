@@ -3,6 +3,7 @@
 [![CI](https://github.com/jhlee0409/openapi-sync-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/jhlee0409/openapi-sync-mcp/actions/workflows/ci.yml)
 [![MCP](https://img.shields.io/badge/MCP-2025--11--25-blue)](https://modelcontextprotocol.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![MCP Badge](https://lobehub.com/badge/mcp/jhlee0409-openapi-sync-mcp)](https://lobehub.com/mcp/jhlee0409-openapi-sync-mcp)
 
 A high-performance MCP server for OpenAPI specifications. Parse, diff, track dependencies, and generate code - all from your AI assistant.
 
