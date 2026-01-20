@@ -207,6 +207,14 @@ impl McpServer {
                                 "type": "string",
                                 "enum": ["upstream", "downstream", "both"],
                                 "description": "Direction (default: downstream)"
+                            },
+                            "project_dir": {
+                                "type": "string",
+                                "description": "Project directory for caching"
+                            },
+                            "use_cache": {
+                                "type": "boolean",
+                                "description": "Use cached spec if available (default: true)"
                             }
                         },
                         "required": ["source"]
@@ -233,6 +241,14 @@ impl McpServer {
                             "breaking_only": {
                                 "type": "boolean",
                                 "description": "Only show breaking changes"
+                            },
+                            "project_dir": {
+                                "type": "string",
+                                "description": "Project directory for caching"
+                            },
+                            "use_cache": {
+                                "type": "boolean",
+                                "description": "Use cached spec if available (default: true)"
                             }
                         },
                         "required": ["old_source", "new_source"]
@@ -313,6 +329,14 @@ impl McpServer {
                                 "type": "array",
                                 "items": { "type": "string" },
                                 "description": "Specific endpoints to generate (empty = all)"
+                            },
+                            "project_dir": {
+                                "type": "string",
+                                "description": "Project directory for caching"
+                            },
+                            "use_cache": {
+                                "type": "boolean",
+                                "description": "Use cached spec if available (default: true)"
                             }
                         },
                         "required": ["source", "target"]
@@ -420,6 +444,14 @@ impl McpServer {
             .map(String::from);
         let path = args.get("path").and_then(|v| v.as_str()).map(String::from);
         let direction = args.get("direction").and_then(|v| v.as_str());
+        let project_dir = args
+            .get("project_dir")
+            .and_then(|v| v.as_str())
+            .map(String::from);
+        let use_cache = args
+            .get("use_cache")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
 
         let input = tools::DepsInput {
             source,
@@ -430,6 +462,8 @@ impl McpServer {
                 Some("both") => tools::DepsDirection::Both,
                 _ => tools::DepsDirection::Downstream,
             },
+            project_dir,
+            use_cache,
         };
 
         let result = query_deps(input).await;
@@ -459,11 +493,23 @@ impl McpServer {
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
+        let project_dir = args
+            .get("project_dir")
+            .and_then(|v| v.as_str())
+            .map(String::from);
+
+        let use_cache = args
+            .get("use_cache")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+
         let input = tools::DiffInput {
             old_source,
             new_source,
             include_affected_paths,
             breaking_only,
+            project_dir,
+            use_cache,
         };
 
         let result = diff_specs(input).await;
@@ -541,12 +587,24 @@ impl McpServer {
             })
             .unwrap_or_default();
 
+        let project_dir = args
+            .get("project_dir")
+            .and_then(|v| v.as_str())
+            .map(String::from);
+
+        let use_cache = args
+            .get("use_cache")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+
         let input = tools::GenerateInput {
             source,
             target,
             style,
             schemas,
             endpoints,
+            project_dir,
+            use_cache,
         };
 
         let result = generate_code(input).await;

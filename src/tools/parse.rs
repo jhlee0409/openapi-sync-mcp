@@ -97,92 +97,50 @@ pub struct SchemaSummary {
 
 /// Parse an OpenAPI spec
 pub async fn parse_spec(input: ParseInput) -> ParseOutput {
-    // Try to use cache if enabled
-    if input.use_cache {
-        if let Some(ref project_dir) = input.project_dir {
-            let cache_manager = CacheManager::new(project_dir);
-            if let Ok(cache) = cache_manager.load_cache() {
-                // Check if cache is still valid
-                let is_valid = if input.source.starts_with("http") {
-                    cache_manager
-                        .check_remote_cache(&input.source, &cache)
-                        .await
-                } else {
-                    cache_manager.check_local_cache(&input.source, &cache)
+    // Parse spec (with caching if enabled)
+    let spec = if input.use_cache && input.project_dir.is_some() {
+        let cache_manager = CacheManager::new(input.project_dir.as_ref().unwrap());
+        match cache_manager
+            .parse_with_cache(&input.source, input.ttl_seconds)
+            .await
+        {
+            Ok(spec) => spec,
+            Err(e) => {
+                return ParseOutput {
+                    success: false,
+                    metadata: None,
+                    endpoints: None,
+                    endpoint_keys: None,
+                    schemas: None,
+                    schema_names: None,
+                    graph_stats: None,
+                    pagination: None,
+                    error: Some(e.to_string()),
                 };
-
-                if is_valid {
-                    // Parse openapi_version from cache
-                    let openapi_version = cache
-                        .meta
-                        .openapi_version
-                        .as_deref()
-                        .and_then(|v| match v {
-                            "2.0" => Some(OpenApiVersion::Swagger2),
-                            "3.0" => Some(OpenApiVersion::OpenApi30),
-                            "3.1" => Some(OpenApiVersion::OpenApi31),
-                            _ => None,
-                        })
-                        .unwrap_or(OpenApiVersion::OpenApi30);
-
-                    return ParseOutput {
-                        success: true,
-                        metadata: Some(SpecMetadata {
-                            title: cache.meta.title.unwrap_or_default(),
-                            version: cache.meta.version.unwrap_or_default(),
-                            description: None,
-                            openapi_version,
-                            endpoint_count: cache.meta.endpoint_count,
-                            schema_count: cache.meta.schema_count,
-                            tag_count: 0,
-                        }),
-                        endpoints: None,
-                        endpoint_keys: None,
-                        schemas: None,
-                        schema_names: None,
-                        graph_stats: None,
-                        pagination: None,
-                        error: Some(
-                            "Using cached data. Use use_cache=false to force refresh.".to_string(),
-                        ),
-                    };
-                }
             }
         }
-    }
-
-    // Parse the spec (with HTTP headers for caching)
-    let (spec, http_headers) = match OpenApiParser::parse_with_headers(&input.source).await {
-        Ok(result) => result,
-        Err(e) => {
-            return ParseOutput {
-                success: false,
-                metadata: None,
-                endpoints: None,
-                endpoint_keys: None,
-                schemas: None,
-                schema_names: None,
-                graph_stats: None,
-                pagination: None,
-                error: Some(e.to_string()),
-            };
+    } else {
+        // No caching, parse directly
+        match OpenApiParser::parse(&input.source).await {
+            Ok(spec) => spec,
+            Err(e) => {
+                return ParseOutput {
+                    success: false,
+                    metadata: None,
+                    endpoints: None,
+                    endpoint_keys: None,
+                    schemas: None,
+                    schema_names: None,
+                    graph_stats: None,
+                    pagination: None,
+                    error: Some(e.to_string()),
+                };
+            }
         }
     };
 
     // Build dependency graph
     let graph = GraphBuilder::build(&spec);
-
-    // Save to cache if project_dir provided (including HTTP headers)
-    if let Some(ref project_dir) = input.project_dir {
-        let cache_manager = CacheManager::new(project_dir);
-        let cache = cache_manager.create_cache_with_headers(
-            &spec,
-            &input.source,
-            input.ttl_seconds,
-            Some(&http_headers),
-        );
-        let _ = cache_manager.save_cache(&cache);
-    }
 
     // Default limit for paginated outputs
     let limit = input.limit.unwrap_or(50);

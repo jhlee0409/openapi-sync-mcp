@@ -136,8 +136,8 @@ impl OpenApiParser {
         })
     }
 
-    /// Parse content as JSON or YAML
-    fn parse_content(content: &str, source: &str) -> OasResult<ParsedSpec> {
+    /// Parse content as JSON or YAML (public for cache reuse)
+    pub fn parse_content(content: &str, source: &str) -> OasResult<ParsedSpec> {
         // Try JSON first (faster), then YAML
         let value: serde_json::Value = if content.trim().starts_with('{') {
             serde_json::from_str(content).map_err(|e| OasError::InvalidJson(e.to_string()))?
@@ -971,38 +971,7 @@ impl OpenApiParser {
         }
     }
 
-    /// Legacy: Extract all $ref references (for compatibility)
-    pub fn extract_refs(value: &serde_json::Value) -> Vec<String> {
-        let mut refs = Vec::new();
-        Self::collect_refs(value, &mut refs);
-        refs.sort();
-        refs.dedup();
-        refs
-    }
-
-    fn collect_refs(value: &serde_json::Value, refs: &mut Vec<String>) {
-        match value {
-            serde_json::Value::Object(obj) => {
-                if let Some(ref_str) = obj.get("$ref").and_then(|v| v.as_str()) {
-                    let clean_ref = ref_str
-                        .replace("#/definitions/", "")
-                        .replace("#/components/schemas/", "");
-                    refs.push(clean_ref);
-                }
-                for v in obj.values() {
-                    Self::collect_refs(v, refs);
-                }
-            }
-            serde_json::Value::Array(arr) => {
-                for v in arr {
-                    Self::collect_refs(v, refs);
-                }
-            }
-            _ => {}
-        }
-    }
-
-    /// Legacy: Compute SHA256 hash (for compatibility)
+    /// Compute SHA256 hash of JSON value
     pub fn compute_hash(value: &serde_json::Value) -> String {
         let normalized = serde_json::to_string(value).unwrap_or_default();
         let mut hasher = Sha256::new();
@@ -1027,7 +996,7 @@ mod tests {
             }
         });
 
-        let refs = OpenApiParser::extract_refs(&json);
+        let (refs, _hash) = OpenApiParser::extract_refs_and_hash(&json);
         assert!(refs.contains(&"User".to_string()));
         assert!(refs.contains(&"Post".to_string()));
     }

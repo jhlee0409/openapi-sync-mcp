@@ -1,0 +1,261 @@
+{
+  "version": "1.0.0",
+  "schema_version": 1,
+  "last_fetch": "2026-01-20T08:28:41.087462+00:00",
+  "spec_hash": "f0688ddd3f402a7f",
+  "source": "/Users/jack/openapi-sync-mcp/tests/fixtures/test-api.json",
+  "ttl_seconds": 86400,
+  "http_cache": {
+    "etag": null,
+    "last_modified": null
+  },
+  "local_cache": {
+    "mtime": "2026-01-20T07:18:35.134727838+00:00"
+  },
+  "meta": {
+    "title": "Test API",
+    "version": "1.0.0",
+    "openapi_version": "3.0",
+    "endpoint_count": 4,
+    "schema_count": 3
+  },
+  "parsed_spec": {
+    "metadata": {
+      "title": "Test API",
+      "version": "1.0.0",
+      "description": "A test API for cache testing",
+      "openapi_version": "3.0",
+      "endpoint_count": 4,
+      "schema_count": 3,
+      "tag_count": 2
+    },
+    "endpoints": {
+      "post:/users": {
+        "path": "/users",
+        "method": "post",
+        "operation_id": "createUser",
+        "summary": "Create a user",
+        "description": null,
+        "tags": [
+          "users"
+        ],
+        "parameters": [],
+        "request_body": {
+          "required": false,
+          "description": null,
+          "content_types": [
+            "application/json"
+          ],
+          "schema_ref": "CreateUserRequest"
+        },
+        "responses": {
+          "201": {
+            "status_code": "201",
+            "description": "Created",
+            "content_types": [
+              "application/json"
+            ],
+            "schema_ref": "User"
+          }
+        },
+        "deprecated": false,
+        "hash": "0544a5d19702f14a",
+        "schema_refs": [
+          "CreateUserRequest",
+          "User"
+        ]
+      },
+      "get:/posts": {
+        "path": "/posts",
+        "method": "get",
+        "operation_id": "getPosts",
+        "summary": "Get all posts",
+        "description": null,
+        "tags": [
+          "posts"
+        ],
+        "parameters": [],
+        "request_body": null,
+        "responses": {
+          "200": {
+            "status_code": "200",
+            "description": "Success",
+            "content_types": [
+              "application/json"
+            ],
+            "schema_ref": null
+          }
+        },
+        "deprecated": false,
+        "hash": "6b706ca95362ac44",
+        "schema_refs": [
+          "Post"
+        ]
+      },
+      "get:/users": {
+        "path": "/users",
+        "method": "get",
+        "operation_id": "getUsers",
+        "summary": "Get all users",
+        "description": null,
+        "tags": [
+          "users"
+        ],
+        "parameters": [],
+        "request_body": null,
+        "responses": {
+          "200": {
+            "status_code": "200",
+            "description": "Success",
+            "content_types": [
+              "application/json"
+            ],
+            "schema_ref": null
+          }
+        },
+        "deprecated": false,
+        "hash": "d3f001ac532c1a84",
+        "schema_refs": [
+          "User"
+        ]
+      },
+      "get:/users/{id}": {
+        "path": "/users/{id}",
+        "method": "get",
+        "operation_id": "getUser",
+        "summary": "Get user by ID",
+        "description": null,
+        "tags": [
+          "users"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "location": "path",
+            "required": true,
+            "description": null,
+            "schema_ref": null,
+            "schema_type": "string"
+          }
+        ],
+        "request_body": null,
+        "responses": {
+          "200": {
+            "status_code": "200",
+            "description": "Success",
+            "content_types": [
+              "application/json"
+            ],
+            "schema_ref": "User"
+          }
+        },
+        "deprecated": false,
+        "hash": "9c02290670820151",
+        "schema_refs": [
+          "User"
+        ]
+      }
+    },
+    "schemas": {
+      "User": {
+        "name": "User",
+        "schema_type": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "format": null,
+              "enum": null
+            },
+            "id": {
+              "type": "string",
+              "format": null,
+              "enum": null
+            },
+            "email": {
+              "type": "string",
+              "format": "email",
+              "enum": null
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "email"
+          ]
+        },
+        "description": null,
+        "refs": [],
+        "hash": "dace61969125c9fa"
+      },
+      "CreateUserRequest": {
+        "name": "CreateUserRequest",
+        "schema_type": {
+          "type": "object",
+          "properties": {
+            "email": {
+              "type": "string",
+              "format": "email",
+              "enum": null
+            },
+            "name": {
+              "type": "string",
+              "format": null,
+              "enum": null
+            }
+          },
+          "required": [
+            "name",
+            "email"
+          ]
+        },
+        "description": null,
+        "refs": [],
+        "hash": "b903c88e2857b4c2"
+      },
+      "Post": {
+        "name": "Post",
+        "schema_type": {
+          "type": "object",
+          "properties": {
+            "content": {
+              "type": "string",
+              "format": null,
+              "enum": null
+            },
+            "author": {
+              "type": "ref",
+              "$ref": "User"
+            },
+            "title": {
+              "type": "string",
+              "format": null,
+              "enum": null
+            },
+            "id": {
+              "type": "string",
+              "format": null,
+              "enum": null
+            }
+          },
+          "required": [
+            "id",
+            "title",
+            "author"
+          ]
+        },
+        "description": null,
+        "refs": [
+          "User"
+        ],
+        "hash": "2bc31685783695ff"
+      }
+    },
+    "tags": [
+      "posts",
+      "users"
+    ],
+    "spec_hash": "f0688ddd3f402a7f",
+    "source": "/Users/jack/openapi-sync-mcp/tests/fixtures/test-api.json"
+  }
+}

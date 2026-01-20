@@ -122,15 +122,28 @@ pub enum DataFetchingLib {
     RtkQuery,
 }
 
+/// Current cache schema version - increment when ParsedSpec structure changes
+pub const CACHE_SCHEMA_VERSION: u32 = 1;
+
+fn default_schema_version() -> u32 {
+    CACHE_SCHEMA_VERSION
+}
+
 /// Cache file (.openapi-sync.cache.json)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OasCache {
     pub version: String,
+
+    /// Cache schema version for compatibility checking
+    /// If this doesn't match CACHE_SCHEMA_VERSION, cache is invalidated
+    #[serde(default = "default_schema_version")]
+    pub schema_version: u32,
+
     pub last_fetch: String,
     pub spec_hash: String,
     pub source: String,
 
-    /// TTL in seconds (default: 3600 = 1 hour)
+    /// TTL in seconds (default: 86400 = 24 hours)
     #[serde(default = "default_ttl")]
     pub ttl_seconds: u64,
 
@@ -140,7 +153,12 @@ pub struct OasCache {
     #[serde(default)]
     pub local_cache: LocalCacheInfo,
 
+    #[serde(default)]
     pub meta: CachedMeta,
+
+    /// Parsed spec for zero-parse caching (avoids re-parsing entirely)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parsed_spec: Option<crate::types::ParsedSpec>,
 }
 
 fn default_ttl() -> u64 {
