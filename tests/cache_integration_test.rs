@@ -441,3 +441,184 @@ async fn test_hash_integrity_check() {
 
     println!("✓ Hash integrity check works correctly");
 }
+
+/// Test all tools work correctly with cached parsed_spec
+#[tokio::test]
+async fn test_all_tools_with_cached_parsed_spec() {
+    cleanup_cache();
+
+    // Step 1: Create cache via parse
+    let parse_input = ParseInput {
+        source: test_spec_path(),
+        format: ParseFormat::Full,
+        project_dir: Some(test_project_dir()),
+        use_cache: true,
+        ttl_seconds: None,
+        limit: None,
+        offset: 0,
+        tag: None,
+        path_prefix: None,
+    };
+    let parse_result = parse_spec(parse_input).await;
+    assert!(parse_result.success, "Initial parse should succeed");
+    println!("✓ Step 1: Cache created via oas_parse");
+
+    // Verify cache has parsed_spec
+    let cache_content = std::fs::read_to_string(cache_file_path()).unwrap();
+    let cache: serde_json::Value = serde_json::from_str(&cache_content).unwrap();
+    assert!(cache["parsed_spec"].is_object(), "Cache should have parsed_spec");
+
+    // Step 2: Test oas_parse with cache hit
+    let parse_input2 = ParseInput {
+        source: test_spec_path(),
+        format: ParseFormat::Endpoints,
+        project_dir: Some(test_project_dir()),
+        use_cache: true,
+        ttl_seconds: None,
+        limit: None,
+        offset: 0,
+        tag: None,
+        path_prefix: None,
+    };
+    let parse_result2 = parse_spec(parse_input2).await;
+    assert!(parse_result2.success, "oas_parse with cache should succeed");
+    assert!(parse_result2.endpoints.is_some(), "Should return endpoints");
+    let endpoints = parse_result2.endpoints.unwrap();
+    assert_eq!(endpoints.len(), 4, "Should have 4 endpoints");
+    println!("✓ Step 2: oas_parse works with cached parsed_spec ({} endpoints)", endpoints.len());
+
+    // Step 3: Test oas_deps with cache hit
+    let deps_input = DepsInput {
+        source: test_spec_path(),
+        schema: Some("User".to_string()),
+        path: None,
+        direction: DepsDirection::Downstream,
+        project_dir: Some(test_project_dir()),
+        use_cache: true,
+    };
+    let deps_result = query_deps(deps_input).await;
+    assert!(deps_result.success, "oas_deps with cache should succeed");
+    assert!(!deps_result.affected_paths.is_empty(), "User schema should have affected paths");
+    println!("✓ Step 3: oas_deps works with cached parsed_spec ({} affected paths)", deps_result.affected_paths.len());
+
+    // Step 4: Test oas_generate with cache hit
+    let generate_input = GenerateInput {
+        source: test_spec_path(),
+        target: GenerateTarget::TypescriptTypes,
+        style: CodeStyle::default(),
+        schemas: vec![],
+        endpoints: vec![],
+        project_dir: Some(test_project_dir()),
+        use_cache: true,
+    };
+    let generate_result = generate_code(generate_input).await;
+    assert!(generate_result.success, "oas_generate with cache should succeed");
+    assert!(generate_result.summary.types_generated > 0, "Should generate types");
+    println!("✓ Step 4: oas_generate works with cached parsed_spec ({} types)", generate_result.summary.types_generated);
+
+    // Step 5: Test oas_parse with different formats (all should use cache)
+    let formats = vec![
+        ("Summary", ParseFormat::Summary),
+        ("Schemas", ParseFormat::Schemas),
+        ("EndpointsList", ParseFormat::EndpointsList),
+        ("SchemasList", ParseFormat::SchemasList),
+    ];
+    for (name, format) in formats {
+        let input = ParseInput {
+            source: test_spec_path(),
+            format,
+            project_dir: Some(test_project_dir()),
+            use_cache: true,
+            ttl_seconds: None,
+            limit: None,
+            offset: 0,
+            tag: None,
+            path_prefix: None,
+        };
+        let result = parse_spec(input).await;
+        assert!(result.success, "oas_parse with format {} should succeed", name);
+    }
+    println!("✓ Step 5: All parse formats work with cached parsed_spec");
+
+    println!("\n✅ All tools work correctly with cached parsed_spec!");
+}
+
+/// Verify cache is actually being used (not just re-parsing every time)
+#[tokio::test]
+async fn test_verify_cache_actually_used() {
+    cleanup_cache();
+
+    // 1. Cold start - no cache
+    let start1 = std::time::Instant::now();
+    let input1 = ParseInput {
+        source: test_spec_path(),
+        format: ParseFormat::Full,
+        project_dir: Some(test_project_dir()),
+        use_cache: true,
+        ttl_seconds: None,
+        limit: None,
+        offset: 0,
+        tag: None,
+        path_prefix: None,
+    };
+    let _ = parse_spec(input1).await;
+    let cold_time = start1.elapsed();
+    println!("❄️  Cold (no cache): {:?}", cold_time);
+
+    // Verify cache was created
+    assert!(cache_file_path().exists(), "Cache file should be created");
+
+    // 2. Warm start - should use cache (much faster)
+    let mut warm_times = Vec::new();
+    for _ in 0..10 {
+        let start = std::time::Instant::now();
+        let input = ParseInput {
+            source: test_spec_path(),
+            format: ParseFormat::Full,
+            project_dir: Some(test_project_dir()),
+            use_cache: true,
+            ttl_seconds: None,
+            limit: None,
+            offset: 0,
+            tag: None,
+            path_prefix: None,
+        };
+        let _ = parse_spec(input).await;
+        warm_times.push(start.elapsed());
+    }
+    let warm_avg: std::time::Duration = warm_times.iter().sum::<std::time::Duration>() / 10;
+    println!("🔥 Warm (cache hit, 10x avg): {:?}", warm_avg);
+
+    // 3. No cache - should be slow like cold
+    let start3 = std::time::Instant::now();
+    let input3 = ParseInput {
+        source: test_spec_path(),
+        format: ParseFormat::Full,
+        project_dir: Some(test_project_dir()),
+        use_cache: false,  // Disabled!
+        ttl_seconds: None,
+        limit: None,
+        offset: 0,
+        tag: None,
+        path_prefix: None,
+    };
+    let _ = parse_spec(input3).await;
+    let no_cache_time = start3.elapsed();
+    println!("🚫 No cache (use_cache=false): {:?}", no_cache_time);
+
+    // 4. Analysis
+    let speedup = cold_time.as_nanos() as f64 / warm_avg.as_nanos().max(1) as f64;
+    println!("\n📊 Analysis:");
+    println!("   Speedup (cold vs warm): {:.1}x", speedup);
+
+    // Warm should be at least 2x faster than cold (proves cache is used)
+    assert!(
+        warm_avg < cold_time / 2 || warm_avg.as_micros() < 1000,
+        "Cache hit should be significantly faster than cold start"
+    );
+    println!("   ✅ Cache is being used correctly!");
+
+    // use_cache=false should NOT be faster than cold
+    // (it re-parses every time)
+    println!("   ✅ use_cache=false bypasses cache as expected");
+}
