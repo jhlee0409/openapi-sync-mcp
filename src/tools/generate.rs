@@ -368,10 +368,10 @@ fn generate_typescript_types(schemas: &[SimpleSchema], style: &CodeStyle) -> Vec
     }
 
     for schema in schemas {
-        if style.generate_docs {
-            if let Some(desc) = &schema.description {
-                content.push_str(&format!("/** {desc} */\n"));
-            }
+        if style.generate_docs
+            && let Some(desc) = &schema.description
+        {
+            content.push_str(&format!("/** {desc} */\n"));
         }
 
         let type_name = convert_name(&schema.name, &style.type_naming);
@@ -390,10 +390,10 @@ fn generate_typescript_types(schemas: &[SimpleSchema], style: &CodeStyle) -> Vec
             let ts_type = to_typescript_type(prop, style);
             let optional = if prop.required { "" } else { "?" };
 
-            if style.generate_docs {
-                if let Some(desc) = &prop.description {
-                    content.push_str(&format!("  /** {desc} */\n"));
-                }
+            if style.generate_docs
+                && let Some(desc) = &prop.description
+            {
+                content.push_str(&format!("  /** {desc} */\n"));
             }
             content.push_str(&format!("  {prop_name}{optional}: {ts_type};\n"));
         }
@@ -489,10 +489,10 @@ async function request<T>(path: string, options: RequestInit = {{}}): Promise<T>
             ""
         };
 
-        if style.generate_docs {
-            if let Some(ref summary) = endpoint.summary {
-                content.push_str(&format!("/** {summary} */\n"));
-            }
+        if style.generate_docs
+            && let Some(ref summary) = endpoint.summary
+        {
+            content.push_str(&format!("/** {summary} */\n"));
         }
 
         content.push_str(&format!(
@@ -577,10 +577,10 @@ const api = axios.create({{
             ""
         };
 
-        if style.generate_docs {
-            if let Some(ref summary) = endpoint.summary {
-                content.push_str(&format!("/** {summary} */\n"));
-            }
+        if style.generate_docs
+            && let Some(ref summary) = endpoint.summary
+        {
+            content.push_str(&format!("/** {summary} */\n"));
         }
 
         content.push_str(&format!(
@@ -695,10 +695,10 @@ fn generate_rust_types(schemas: &[SimpleSchema], style: &CodeStyle) -> Vec<Gener
     content.push_str("//! Auto-generated Rust types from OpenAPI spec\n\nuse serde::{Deserialize, Serialize};\n\n");
 
     for schema in schemas {
-        if style.generate_docs {
-            if let Some(desc) = &schema.description {
-                content.push_str(&format!("/// {desc}\n"));
-            }
+        if style.generate_docs
+            && let Some(desc) = &schema.description
+        {
+            content.push_str(&format!("/// {desc}\n"));
         }
 
         let type_name = to_pascal_case(&schema.name);
@@ -802,10 +802,10 @@ impl ApiClient {
             ""
         };
 
-        if style.generate_docs {
-            if let Some(ref summary) = endpoint.summary {
-                content.push_str(&format!("    /// {summary}\n"));
-            }
+        if style.generate_docs
+            && let Some(ref summary) = endpoint.summary
+        {
+            content.push_str(&format!("    /// {summary}\n"));
         }
 
         content.push_str(&format!(

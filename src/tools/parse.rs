@@ -151,15 +151,15 @@ pub async fn parse_spec(input: ParseInput) -> ParseOutput {
         .endpoints
         .values()
         .filter(|e| {
-            if let Some(ref tag) = input.tag {
-                if !e.tags.iter().any(|t| t.eq_ignore_ascii_case(tag)) {
-                    return false;
-                }
+            if let Some(ref tag) = input.tag
+                && !e.tags.iter().any(|t| t.eq_ignore_ascii_case(tag))
+            {
+                return false;
             }
-            if let Some(ref prefix) = input.path_prefix {
-                if !e.path.starts_with(prefix) {
-                    return false;
-                }
+            if let Some(ref prefix) = input.path_prefix
+                && !e.path.starts_with(prefix)
+            {
+                return false;
             }
             true
         })

@@ -159,10 +159,10 @@ impl OpenApiParser {
 
     /// Detect OpenAPI version from spec
     fn detect_version(value: &serde_json::Value) -> OasResult<OpenApiVersion> {
-        if let Some(swagger) = value.get("swagger").and_then(|v| v.as_str()) {
-            if swagger.starts_with("2.") {
-                return Ok(OpenApiVersion::Swagger2);
-            }
+        if let Some(swagger) = value.get("swagger").and_then(|v| v.as_str())
+            && swagger.starts_with("2.")
+        {
+            return Ok(OpenApiVersion::Swagger2);
         }
 
         if let Some(openapi) = value.get("openapi").and_then(|v| v.as_str()) {
@@ -554,32 +554,32 @@ impl OpenApiParser {
 
     /// Parse OpenAPI 3.x schemas in parallel
     fn parse_openapi3_schemas_parallel(value: &serde_json::Value) -> HashMap<String, Schema> {
-        if let Some(components) = value.get("components") {
-            if let Some(schema_obj) = components.get("schemas").and_then(|v| v.as_object()) {
-                // Convert to Vec for parallel iteration
-                let items: Vec<_> = schema_obj.iter().collect();
-                let parsed: Vec<ParsedSchema> = items
-                    .par_iter()
-                    .map(|(name, def)| {
-                        let (refs, hash) = Self::extract_refs_and_hash(def);
-                        ParsedSchema {
+        if let Some(components) = value.get("components")
+            && let Some(schema_obj) = components.get("schemas").and_then(|v| v.as_object())
+        {
+            // Convert to Vec for parallel iteration
+            let items: Vec<_> = schema_obj.iter().collect();
+            let parsed: Vec<ParsedSchema> = items
+                .par_iter()
+                .map(|(name, def)| {
+                    let (refs, hash) = Self::extract_refs_and_hash(def);
+                    ParsedSchema {
+                        name: (*name).clone(),
+                        schema: Schema {
                             name: (*name).clone(),
-                            schema: Schema {
-                                name: (*name).clone(),
-                                schema_type: Self::parse_schema_type(def),
-                                description: def
-                                    .get("description")
-                                    .and_then(|v| v.as_str())
-                                    .map(String::from),
-                                refs,
-                                hash,
-                            },
-                        }
-                    })
-                    .collect();
+                            schema_type: Self::parse_schema_type(def),
+                            description: def
+                                .get("description")
+                                .and_then(|v| v.as_str())
+                                .map(String::from),
+                            refs,
+                            hash,
+                        },
+                    }
+                })
+                .collect();
 
-                return parsed.into_iter().map(|p| (p.name, p.schema)).collect();
-            }
+            return parsed.into_iter().map(|p| (p.name, p.schema)).collect();
         }
         HashMap::new()
     }
@@ -953,13 +953,13 @@ impl OpenApiParser {
                     let val = &obj[key];
 
                     // Check for $ref
-                    if key == "$ref" {
-                        if let Some(ref_str) = val.as_str() {
-                            let clean_ref = ref_str
-                                .replace("#/definitions/", "")
-                                .replace("#/components/schemas/", "");
-                            refs.push(clean_ref);
-                        }
+                    if key == "$ref"
+                        && let Some(ref_str) = val.as_str()
+                    {
+                        let clean_ref = ref_str
+                            .replace("#/definitions/", "")
+                            .replace("#/components/schemas/", "");
+                        refs.push(clean_ref);
                     }
 
                     Self::collect_refs_and_hash(val, refs, hasher);

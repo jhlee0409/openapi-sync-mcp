@@ -11,9 +11,9 @@ mod types;
 mod utils;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::io::{BufRead, Write};
-use tracing::{debug, error, info, Level};
+use tracing::{Level, debug, error, info};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::tools::{diff_specs, generate_code, get_status, parse_spec, query_deps};

@@ -291,21 +291,19 @@ impl CacheManager {
         };
 
         // Check ETag
-        if let Some(etag) = response.headers().get("etag") {
-            if let Ok(etag_str) = etag.to_str() {
-                if let Some(cached_etag) = &cache.http_cache.etag {
-                    return etag_str == cached_etag;
-                }
-            }
+        if let Some(etag) = response.headers().get("etag")
+            && let Ok(etag_str) = etag.to_str()
+            && let Some(cached_etag) = &cache.http_cache.etag
+        {
+            return etag_str == cached_etag;
         }
 
         // Check Last-Modified
-        if let Some(last_modified) = response.headers().get("last-modified") {
-            if let Ok(lm_str) = last_modified.to_str() {
-                if let Some(cached_lm) = &cache.http_cache.last_modified {
-                    return lm_str == cached_lm;
-                }
-            }
+        if let Some(last_modified) = response.headers().get("last-modified")
+            && let Ok(lm_str) = last_modified.to_str()
+            && let Some(cached_lm) = &cache.http_cache.last_modified
+        {
+            return lm_str == cached_lm;
         }
 
         // No cache headers - fall back to TTL only (already passed TTL check above)
