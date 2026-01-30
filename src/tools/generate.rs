@@ -1,6 +1,6 @@
 //! oas_generate tool implementation - Hybrid code generation
 
-use crate::services::{GraphBuilder, OpenApiParser};
+use crate::services::{CacheManager, GraphBuilder, OpenApiParser};
 use crate::types::{Endpoint, ParameterLocation, Schema, SchemaType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -20,6 +20,15 @@ pub struct GenerateInput {
     /// Specific endpoints to generate (empty = all)
     #[serde(default)]
     pub endpoints: Vec<String>,
+    /// Project directory for caching
+    pub project_dir: Option<String>,
+    /// Whether to use cache (default: true when project_dir is provided)
+    #[serde(default = "default_true")]
+    pub use_cache: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -139,21 +148,41 @@ struct SimpleEndpoint {
 
 /// Generate code from OpenAPI spec with style configuration
 pub async fn generate_code(input: GenerateInput) -> GenerateOutput {
-    // Parse spec
-    let spec = match OpenApiParser::parse(&input.source).await {
-        Ok(s) => s,
-        Err(e) => {
-            return GenerateOutput {
-                success: false,
-                generated_files: vec![],
-                summary: GenerateSummary {
-                    types_generated: 0,
-                    endpoints_generated: 0,
-                    files_created: 0,
-                    target: format!("{:?}", input.target),
-                },
-                error: Some(format!("Failed to parse spec: {e}")),
-            };
+    // Parse spec (with caching if project_dir provided)
+    let spec = if let (true, Some(project_dir)) = (input.use_cache, input.project_dir.as_ref()) {
+        let cache_manager = CacheManager::new(project_dir);
+        match cache_manager.parse_with_cache(&input.source, None).await {
+            Ok(s) => s,
+            Err(e) => {
+                return GenerateOutput {
+                    success: false,
+                    generated_files: vec![],
+                    summary: GenerateSummary {
+                        types_generated: 0,
+                        endpoints_generated: 0,
+                        files_created: 0,
+                        target: format!("{:?}", input.target),
+                    },
+                    error: Some(format!("Failed to parse spec: {e}")),
+                };
+            }
+        }
+    } else {
+        match OpenApiParser::parse(&input.source).await {
+            Ok(s) => s,
+            Err(e) => {
+                return GenerateOutput {
+                    success: false,
+                    generated_files: vec![],
+                    summary: GenerateSummary {
+                        types_generated: 0,
+                        endpoints_generated: 0,
+                        files_created: 0,
+                        target: format!("{:?}", input.target),
+                    },
+                    error: Some(format!("Failed to parse spec: {e}")),
+                };
+            }
         }
     };
 

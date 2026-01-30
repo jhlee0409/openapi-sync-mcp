@@ -1,6 +1,6 @@
 //! oas_diff tool implementation
 
-use crate::services::{DiffEngine, GraphBuilder, OpenApiParser, SpecDiff};
+use crate::services::{CacheManager, DiffEngine, GraphBuilder, OpenApiParser, SpecDiff};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
@@ -15,6 +15,11 @@ pub struct DiffInput {
     /// Only show breaking changes
     #[serde(default)]
     pub breaking_only: bool,
+    /// Project directory for caching
+    pub project_dir: Option<String>,
+    /// Whether to use cache (default: true when project_dir is provided)
+    #[serde(default = "default_true")]
+    pub use_cache: bool,
 }
 
 fn default_true() -> bool {
@@ -43,29 +48,65 @@ pub struct DiffSummary {
 
 /// Compare two OpenAPI specs
 pub async fn diff_specs(input: DiffInput) -> DiffOutput {
+    // Create cache manager if project_dir provided
+    let cache_manager =
+        if let (true, Some(project_dir)) = (input.use_cache, input.project_dir.as_ref()) {
+            Some(CacheManager::new(project_dir))
+        } else {
+            None
+        };
+
     // Parse old spec
-    let old_spec = match OpenApiParser::parse(&input.old_source).await {
-        Ok(s) => s,
-        Err(e) => {
-            return DiffOutput {
-                success: false,
-                summary: None,
-                diff: None,
-                error: Some(format!("Failed to parse old spec: {e}")),
-            };
+    let old_spec = if let Some(ref cm) = cache_manager {
+        match cm.parse_with_cache(&input.old_source, None).await {
+            Ok(s) => s,
+            Err(e) => {
+                return DiffOutput {
+                    success: false,
+                    summary: None,
+                    diff: None,
+                    error: Some(format!("Failed to parse old spec: {e}")),
+                };
+            }
+        }
+    } else {
+        match OpenApiParser::parse(&input.old_source).await {
+            Ok(s) => s,
+            Err(e) => {
+                return DiffOutput {
+                    success: false,
+                    summary: None,
+                    diff: None,
+                    error: Some(format!("Failed to parse old spec: {e}")),
+                };
+            }
         }
     };
 
     // Parse new spec
-    let new_spec = match OpenApiParser::parse(&input.new_source).await {
-        Ok(s) => s,
-        Err(e) => {
-            return DiffOutput {
-                success: false,
-                summary: None,
-                diff: None,
-                error: Some(format!("Failed to parse new spec: {e}")),
-            };
+    let new_spec = if let Some(ref cm) = cache_manager {
+        match cm.parse_with_cache(&input.new_source, None).await {
+            Ok(s) => s,
+            Err(e) => {
+                return DiffOutput {
+                    success: false,
+                    summary: None,
+                    diff: None,
+                    error: Some(format!("Failed to parse new spec: {e}")),
+                };
+            }
+        }
+    } else {
+        match OpenApiParser::parse(&input.new_source).await {
+            Ok(s) => s,
+            Err(e) => {
+                return DiffOutput {
+                    success: false,
+                    summary: None,
+                    diff: None,
+                    error: Some(format!("Failed to parse new spec: {e}")),
+                };
+            }
         }
     };
 

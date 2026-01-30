@@ -97,27 +97,34 @@ impl CacheManager {
         Ok(())
     }
 
-    /// Create cache from parsed spec
-    #[allow(dead_code)]
-    pub fn create_cache(
-        &self,
-        spec: &ParsedSpec,
-        source: &str,
-        ttl_seconds: Option<u64>,
-    ) -> OasCache {
-        self.create_cache_with_headers(spec, source, ttl_seconds, None)
-    }
-
     /// Create cache from parsed spec with HTTP headers
-    pub fn create_cache_with_headers(
+    pub fn create_cache(
         &self,
         spec: &ParsedSpec,
         source: &str,
         ttl_seconds: Option<u64>,
         http_headers: Option<&super::parser::HttpHeaders>,
     ) -> OasCache {
+        // For local files, extract mtime for cache validation
+        let local_cache = if !source.starts_with("http") {
+            if let Ok(metadata) = std::fs::metadata(source) {
+                if let Ok(modified) = metadata.modified() {
+                    LocalCacheInfo {
+                        mtime: Some(DateTime::<Utc>::from(modified).to_rfc3339()),
+                    }
+                } else {
+                    LocalCacheInfo::default()
+                }
+            } else {
+                LocalCacheInfo::default()
+            }
+        } else {
+            LocalCacheInfo::default()
+        };
+
         OasCache {
             version: "1.0.0".to_string(),
+            schema_version: crate::types::CACHE_SCHEMA_VERSION,
             last_fetch: Utc::now().to_rfc3339(),
             spec_hash: spec.spec_hash.clone(),
             source: source.to_string(),
@@ -126,7 +133,7 @@ impl CacheManager {
                 etag: http_headers.and_then(|h| h.etag.clone()),
                 last_modified: http_headers.and_then(|h| h.last_modified.clone()),
             },
-            local_cache: LocalCacheInfo::default(),
+            local_cache,
             meta: CachedMeta {
                 title: Some(spec.metadata.title.clone()),
                 version: Some(spec.metadata.version.clone()),
@@ -139,6 +146,111 @@ impl CacheManager {
                 endpoint_count: spec.metadata.endpoint_count,
                 schema_count: spec.metadata.schema_count,
             },
+            parsed_spec: Some(spec.clone()),
+        }
+    }
+
+    /// Parse spec with caching support - returns cached spec if valid, otherwise fetches fresh
+    ///
+    /// Cache validation order:
+    /// 1. Schema version check (invalidate if ParsedSpec structure changed)
+    /// 2. Source match check
+    /// 3. TTL + mtime/ETag validation
+    /// 4. Return parsed_spec if available (zero parsing!)
+    /// 5. Graceful fallback: any failure → fresh fetch
+    pub async fn parse_with_cache(
+        &self,
+        source: &str,
+        ttl_seconds: Option<u64>,
+    ) -> OasResult<ParsedSpec> {
+        // Try to use cache with graceful fallback
+        if let Ok(cache) = self.load_cache() {
+            // Check schema version compatibility
+            if cache.schema_version != crate::types::CACHE_SCHEMA_VERSION {
+                // Schema changed - cache is incompatible, fetch fresh
+            } else if cache.source == source {
+                // Validate cache (TTL + mtime/ETag)
+                let is_valid = if source.starts_with("http") {
+                    self.check_remote_cache(source, &cache).await
+                } else {
+                    self.check_local_cache(source, &cache)
+                };
+
+                if is_valid {
+                    // Use pre-parsed spec (zero parsing!)
+                    if let Some(parsed_spec) = cache.parsed_spec {
+                        // Verify hash matches for data integrity
+                        if parsed_spec.spec_hash == cache.spec_hash {
+                            return Ok(parsed_spec);
+                        }
+                        // Hash mismatch - cache corrupted, fetch fresh
+                    }
+                    // No parsed_spec or corrupted - fetch fresh
+                }
+            }
+        }
+
+        // Cache miss, invalid, or incompatible - fetch fresh
+        let (spec, headers) = self.fetch_and_parse(source).await?;
+
+        // Save to cache
+        let cache = self.create_cache(&spec, source, ttl_seconds, Some(&headers));
+        let _ = self.save_cache(&cache);
+
+        Ok(spec)
+    }
+
+    /// Fetch content and parse spec (internal helper)
+    async fn fetch_and_parse(
+        &self,
+        source: &str,
+    ) -> OasResult<(ParsedSpec, super::parser::HttpHeaders)> {
+        if source.starts_with("http://") || source.starts_with("https://") {
+            // Remote fetch
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .build()
+                .map_err(|e| OasError::ConnectionFailed(e.to_string()))?;
+
+            let response = client
+                .get(source)
+                .send()
+                .await
+                .map_err(|e| OasError::ConnectionFailed(e.to_string()))?;
+
+            if !response.status().is_success() {
+                return Err(OasError::HttpError {
+                    status: response.status().as_u16(),
+                    message: response.status().to_string(),
+                });
+            }
+
+            let headers = super::parser::HttpHeaders {
+                etag: response
+                    .headers()
+                    .get("etag")
+                    .and_then(|v| v.to_str().ok())
+                    .map(String::from),
+                last_modified: response
+                    .headers()
+                    .get("last-modified")
+                    .and_then(|v| v.to_str().ok())
+                    .map(String::from),
+            };
+
+            let content = response
+                .text()
+                .await
+                .map_err(|e| OasError::ConnectionFailed(e.to_string()))?;
+
+            let spec = super::parser::OpenApiParser::parse_content(&content, source)?;
+            Ok((spec, headers))
+        } else {
+            // Local file read
+            let content =
+                std::fs::read_to_string(source).map_err(|e| OasError::ReadError(e.to_string()))?;
+            let spec = super::parser::OpenApiParser::parse_content(&content, source)?;
+            Ok((spec, super::parser::HttpHeaders::default()))
         }
     }
 
@@ -220,36 +332,5 @@ impl CacheManager {
         }
 
         false
-    }
-
-    /// Update HTTP cache info from response headers
-    #[allow(dead_code)]
-    pub fn update_http_cache_info(cache: &mut OasCache, headers: &reqwest::header::HeaderMap) {
-        if let Some(etag) = headers.get("etag") {
-            if let Ok(etag_str) = etag.to_str() {
-                cache.http_cache.etag = Some(etag_str.to_string());
-            }
-        }
-
-        if let Some(last_modified) = headers.get("last-modified") {
-            if let Ok(lm_str) = last_modified.to_str() {
-                cache.http_cache.last_modified = Some(lm_str.to_string());
-            }
-        }
-
-        cache.last_fetch = Utc::now().to_rfc3339();
-    }
-
-    /// Update local cache info from file metadata
-    #[allow(dead_code)]
-    pub fn update_local_cache_info(cache: &mut OasCache, path: &str) {
-        if let Ok(metadata) = std::fs::metadata(path) {
-            if let Ok(modified) = metadata.modified() {
-                let mtime = chrono::DateTime::<Utc>::from(modified).to_rfc3339();
-                cache.local_cache.mtime = Some(mtime);
-            }
-        }
-
-        cache.last_fetch = Utc::now().to_rfc3339();
     }
 }
