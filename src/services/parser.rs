@@ -281,7 +281,8 @@ impl OpenApiParser {
                         .map(|obj| {
                             obj.iter()
                                 .filter_map(|(method, op)| {
-                                    Self::parse_http_method(method).map(|_| (path, method.as_str(), op))
+                                    Self::parse_http_method(method)
+                                        .map(|_| (path, method.as_str(), op))
                                 })
                                 .collect::<Vec<_>>()
                         })
@@ -294,12 +295,19 @@ impl OpenApiParser {
                 .par_iter()
                 .filter_map(|(path, method, operation)| {
                     Self::parse_http_method(method).map(|http_method| ParsedOperation {
-                        endpoint: Self::parse_swagger2_operation_optimized(path, http_method, operation),
+                        endpoint: Self::parse_swagger2_operation_optimized(
+                            path,
+                            http_method,
+                            operation,
+                        ),
                     })
                 })
                 .collect();
 
-            parsed.into_iter().map(|p| (p.endpoint.key(), p.endpoint)).collect()
+            parsed
+                .into_iter()
+                .map(|p| (p.endpoint.key(), p.endpoint))
+                .collect()
         } else {
             HashMap::new()
         }
@@ -588,7 +596,8 @@ impl OpenApiParser {
                         .map(|obj| {
                             obj.iter()
                                 .filter_map(|(method, op)| {
-                                    Self::parse_http_method(method).map(|_| (path, method.as_str(), op))
+                                    Self::parse_http_method(method)
+                                        .map(|_| (path, method.as_str(), op))
                                 })
                                 .collect::<Vec<_>>()
                         })
@@ -601,12 +610,19 @@ impl OpenApiParser {
                 .par_iter()
                 .filter_map(|(path, method, operation)| {
                     Self::parse_http_method(method).map(|http_method| ParsedOperation {
-                        endpoint: Self::parse_openapi3_operation_optimized(path, http_method, operation),
+                        endpoint: Self::parse_openapi3_operation_optimized(
+                            path,
+                            http_method,
+                            operation,
+                        ),
                     })
                 })
                 .collect();
 
-            parsed.into_iter().map(|p| (p.endpoint.key(), p.endpoint)).collect()
+            parsed
+                .into_iter()
+                .map(|p| (p.endpoint.key(), p.endpoint))
+                .collect()
         } else {
             HashMap::new()
         }
@@ -916,7 +932,11 @@ impl OpenApiParser {
     }
 
     /// Recursive helper: collect refs and update hash in single traversal
-    fn collect_refs_and_hash(value: &serde_json::Value, refs: &mut Vec<String>, hasher: &mut Sha256) {
+    fn collect_refs_and_hash(
+        value: &serde_json::Value,
+        refs: &mut Vec<String>,
+        hasher: &mut Sha256,
+    ) {
         match value {
             serde_json::Value::Object(obj) => {
                 // Update hash with object structure
@@ -963,7 +983,11 @@ impl OpenApiParser {
                 hasher.update(n.to_string().as_bytes());
             }
             serde_json::Value::Bool(b) => {
-                hasher.update(if *b { "true".as_bytes() } else { "false".as_bytes() });
+                hasher.update(if *b {
+                    "true".as_bytes()
+                } else {
+                    "false".as_bytes()
+                });
             }
             serde_json::Value::Null => {
                 hasher.update(b"null");

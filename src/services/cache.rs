@@ -247,8 +247,8 @@ impl CacheManager {
             Ok((spec, headers))
         } else {
             // Local file read
-            let content = std::fs::read_to_string(source)
-                .map_err(|e| OasError::ReadError(e.to_string()))?;
+            let content =
+                std::fs::read_to_string(source).map_err(|e| OasError::ReadError(e.to_string()))?;
             let spec = super::parser::OpenApiParser::parse_content(&content, source)?;
             Ok((spec, super::parser::HttpHeaders::default()))
         }
