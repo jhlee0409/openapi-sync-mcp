@@ -98,8 +98,8 @@ pub struct SchemaSummary {
 /// Parse an OpenAPI spec
 pub async fn parse_spec(input: ParseInput) -> ParseOutput {
     // Parse spec (with caching if enabled)
-    let spec = if input.use_cache && input.project_dir.is_some() {
-        let cache_manager = CacheManager::new(input.project_dir.as_ref().unwrap());
+    let spec = if let (true, Some(project_dir)) = (input.use_cache, input.project_dir.as_ref()) {
+        let cache_manager = CacheManager::new(project_dir);
         match cache_manager
             .parse_with_cache(&input.source, input.ttl_seconds)
             .await

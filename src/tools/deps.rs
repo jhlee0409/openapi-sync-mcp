@@ -74,8 +74,8 @@ pub async fn query_deps(input: DepsInput) -> DepsOutput {
     }
 
     // Parse the spec (with caching if project_dir provided)
-    let spec = if input.use_cache && input.project_dir.is_some() {
-        let cache_manager = CacheManager::new(input.project_dir.as_ref().unwrap());
+    let spec = if let (true, Some(project_dir)) = (input.use_cache, input.project_dir.as_ref()) {
+        let cache_manager = CacheManager::new(project_dir);
         match cache_manager.parse_with_cache(&input.source, None).await {
             Ok(s) => s,
             Err(e) => {

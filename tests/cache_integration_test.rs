@@ -99,7 +99,10 @@ async fn test_p1_cache_hit_returns_full_data() {
 
     let result1 = parse_spec(input1).await;
     assert!(result1.success);
-    assert!(result1.endpoints.is_some(), "First parse should return endpoints");
+    assert!(
+        result1.endpoints.is_some(),
+        "First parse should return endpoints"
+    );
     let endpoints_count1 = result1.endpoints.as_ref().map(|e| e.len()).unwrap_or(0);
 
     // Second parse - should hit cache and still return full data
@@ -130,7 +133,10 @@ async fn test_p1_cache_hit_returns_full_data() {
         "P1: Cache hit should return same number of endpoints"
     );
 
-    println!("✓ P1: Cache hit returns full data ({} endpoints)", endpoints_count2);
+    println!(
+        "✓ P1: Cache hit returns full data ({} endpoints)",
+        endpoints_count2
+    );
 }
 
 #[tokio::test]
@@ -163,9 +169,15 @@ async fn test_p0_deps_uses_cache() {
 
     let result = query_deps(deps_input).await;
     assert!(result.success, "deps should succeed: {:?}", result.error);
-    assert!(result.affected_paths.len() > 0, "User schema should have downstream paths");
+    assert!(
+        result.affected_paths.len() > 0,
+        "User schema should have downstream paths"
+    );
 
-    println!("✓ P0: oas_deps uses cache, found {} affected paths", result.affected_paths.len());
+    println!(
+        "✓ P0: oas_deps uses cache, found {} affected paths",
+        result.affected_paths.len()
+    );
 }
 
 #[tokio::test]
@@ -198,7 +210,11 @@ async fn test_p0_generate_uses_cache() {
     };
 
     let result = generate_code(generate_input).await;
-    assert!(result.success, "generate should succeed: {:?}", result.error);
+    assert!(
+        result.success,
+        "generate should succeed: {:?}",
+        result.error
+    );
     assert!(result.summary.types_generated > 0, "Should generate types");
 
     println!(
@@ -345,7 +361,13 @@ async fn test_schema_version_invalidation() {
     assert!(result1.success);
 
     // Verify cache has schema_version
-    let cache_content = std::fs::read_to_string(cache_file_path()).unwrap();
+    let cache_path = cache_file_path();
+    assert!(
+        cache_path.exists(),
+        "Cache file should exist after parsing: {:?}",
+        cache_path
+    );
+    let cache_content = std::fs::read_to_string(&cache_path).unwrap();
     let cache: serde_json::Value = serde_json::from_str(&cache_content).unwrap();
     let current_version = cache["schema_version"].as_u64().unwrap();
     assert!(current_version > 0, "schema_version should be set");
@@ -428,7 +450,10 @@ async fn test_hash_integrity_check() {
         path_prefix: None,
     };
     let result2 = parse_spec(input2).await;
-    assert!(result2.success, "Should succeed with fresh fetch after hash mismatch");
+    assert!(
+        result2.success,
+        "Should succeed with fresh fetch after hash mismatch"
+    );
 
     // Verify cache was updated with correct hash
     let updated_cache_content = std::fs::read_to_string(cache_file_path()).unwrap();
@@ -466,7 +491,10 @@ async fn test_all_tools_with_cached_parsed_spec() {
     // Verify cache has parsed_spec
     let cache_content = std::fs::read_to_string(cache_file_path()).unwrap();
     let cache: serde_json::Value = serde_json::from_str(&cache_content).unwrap();
-    assert!(cache["parsed_spec"].is_object(), "Cache should have parsed_spec");
+    assert!(
+        cache["parsed_spec"].is_object(),
+        "Cache should have parsed_spec"
+    );
 
     // Step 2: Test oas_parse with cache hit
     let parse_input2 = ParseInput {
@@ -485,7 +513,10 @@ async fn test_all_tools_with_cached_parsed_spec() {
     assert!(parse_result2.endpoints.is_some(), "Should return endpoints");
     let endpoints = parse_result2.endpoints.unwrap();
     assert_eq!(endpoints.len(), 4, "Should have 4 endpoints");
-    println!("✓ Step 2: oas_parse works with cached parsed_spec ({} endpoints)", endpoints.len());
+    println!(
+        "✓ Step 2: oas_parse works with cached parsed_spec ({} endpoints)",
+        endpoints.len()
+    );
 
     // Step 3: Test oas_deps with cache hit
     let deps_input = DepsInput {
@@ -498,8 +529,14 @@ async fn test_all_tools_with_cached_parsed_spec() {
     };
     let deps_result = query_deps(deps_input).await;
     assert!(deps_result.success, "oas_deps with cache should succeed");
-    assert!(!deps_result.affected_paths.is_empty(), "User schema should have affected paths");
-    println!("✓ Step 3: oas_deps works with cached parsed_spec ({} affected paths)", deps_result.affected_paths.len());
+    assert!(
+        !deps_result.affected_paths.is_empty(),
+        "User schema should have affected paths"
+    );
+    println!(
+        "✓ Step 3: oas_deps works with cached parsed_spec ({} affected paths)",
+        deps_result.affected_paths.len()
+    );
 
     // Step 4: Test oas_generate with cache hit
     let generate_input = GenerateInput {
@@ -512,9 +549,18 @@ async fn test_all_tools_with_cached_parsed_spec() {
         use_cache: true,
     };
     let generate_result = generate_code(generate_input).await;
-    assert!(generate_result.success, "oas_generate with cache should succeed");
-    assert!(generate_result.summary.types_generated > 0, "Should generate types");
-    println!("✓ Step 4: oas_generate works with cached parsed_spec ({} types)", generate_result.summary.types_generated);
+    assert!(
+        generate_result.success,
+        "oas_generate with cache should succeed"
+    );
+    assert!(
+        generate_result.summary.types_generated > 0,
+        "Should generate types"
+    );
+    println!(
+        "✓ Step 4: oas_generate works with cached parsed_spec ({} types)",
+        generate_result.summary.types_generated
+    );
 
     // Step 5: Test oas_parse with different formats (all should use cache)
     let formats = vec![
@@ -536,7 +582,11 @@ async fn test_all_tools_with_cached_parsed_spec() {
             path_prefix: None,
         };
         let result = parse_spec(input).await;
-        assert!(result.success, "oas_parse with format {} should succeed", name);
+        assert!(
+            result.success,
+            "oas_parse with format {} should succeed",
+            name
+        );
     }
     println!("✓ Step 5: All parse formats work with cached parsed_spec");
 
@@ -595,7 +645,7 @@ async fn test_verify_cache_actually_used() {
         source: test_spec_path(),
         format: ParseFormat::Full,
         project_dir: Some(test_project_dir()),
-        use_cache: false,  // Disabled!
+        use_cache: false, // Disabled!
         ttl_seconds: None,
         limit: None,
         offset: 0,

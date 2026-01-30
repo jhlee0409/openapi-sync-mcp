@@ -49,11 +49,12 @@ pub struct DiffSummary {
 /// Compare two OpenAPI specs
 pub async fn diff_specs(input: DiffInput) -> DiffOutput {
     // Create cache manager if project_dir provided
-    let cache_manager = if input.use_cache && input.project_dir.is_some() {
-        Some(CacheManager::new(input.project_dir.as_ref().unwrap()))
-    } else {
-        None
-    };
+    let cache_manager =
+        if let (true, Some(project_dir)) = (input.use_cache, input.project_dir.as_ref()) {
+            Some(CacheManager::new(project_dir))
+        } else {
+            None
+        };
 
     // Parse old spec
     let old_spec = if let Some(ref cm) = cache_manager {
