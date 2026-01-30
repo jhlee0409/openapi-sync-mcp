@@ -29,3 +29,9 @@ npm-debug.log*
 # Test fixtures with sensitive data
 *.local.json
 *.local.yaml
+
+# Claude Code auto-generated files
+**/CLAUDE.md
+!CLAUDE.md
+.omc/
+
