@@ -12,34 +12,40 @@ fn test_spec_path() -> String {
         .to_string()
 }
 
-fn test_project_dir() -> String {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("fixtures")
+/// Create a unique temp directory for each test to avoid parallel test interference.
+/// Copies the test spec file into it so the cache manager can work with local paths.
+fn setup_test_dir() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().expect("Failed to create temp dir");
+    // Copy the test spec into the temp dir so source path is consistent
+    std::fs::copy(test_spec_path(), dir.path().join("test-api.json"))
+        .expect("Failed to copy test spec");
+    dir
+}
+
+fn project_dir(dir: &tempfile::TempDir) -> String {
+    dir.path().to_string_lossy().to_string()
+}
+
+fn spec_path(dir: &tempfile::TempDir) -> String {
+    dir.path()
+        .join("test-api.json")
         .to_string_lossy()
         .to_string()
 }
 
-fn cache_file_path() -> PathBuf {
-    PathBuf::from(&test_project_dir()).join(".openapi-sync.cache.json")
-}
-
-fn cleanup_cache() {
-    let cache_path = cache_file_path();
-    if cache_path.exists() {
-        std::fs::remove_file(&cache_path).ok();
-    }
+fn cache_path(dir: &tempfile::TempDir) -> PathBuf {
+    dir.path().join(".openapi-sync.cache.json")
 }
 
 #[tokio::test]
 async fn test_p0_cache_creation_with_mtime() {
-    cleanup_cache();
+    let dir = setup_test_dir();
 
     // First parse - should create cache
     let input = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Summary,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
         ttl_seconds: None,
         limit: None,
@@ -53,10 +59,10 @@ async fn test_p0_cache_creation_with_mtime() {
     assert!(result.metadata.is_some());
 
     // Verify cache file was created
-    assert!(cache_file_path().exists(), "Cache file should be created");
+    assert!(cache_path(&dir).exists(), "Cache file should be created");
 
     // Verify cache structure
-    let cache_content = std::fs::read_to_string(cache_file_path()).unwrap();
+    let cache_content = std::fs::read_to_string(cache_path(&dir)).unwrap();
     let cache: serde_json::Value = serde_json::from_str(&cache_content).unwrap();
 
     // P0: Check mtime is set for local files
@@ -82,13 +88,13 @@ async fn test_p0_cache_creation_with_mtime() {
 
 #[tokio::test]
 async fn test_p1_cache_hit_returns_full_data() {
-    cleanup_cache();
+    let dir = setup_test_dir();
 
     // First parse - create cache
     let input1 = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Endpoints,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
         ttl_seconds: None,
         limit: None,
@@ -107,9 +113,9 @@ async fn test_p1_cache_hit_returns_full_data() {
 
     // Second parse - should hit cache and still return full data
     let input2 = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Endpoints,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
         ttl_seconds: None,
         limit: None,
@@ -141,13 +147,13 @@ async fn test_p1_cache_hit_returns_full_data() {
 
 #[tokio::test]
 async fn test_p0_deps_uses_cache() {
-    cleanup_cache();
+    let dir = setup_test_dir();
 
     // First, create cache via parse
     let parse_input = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Summary,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
         ttl_seconds: None,
         limit: None,
@@ -159,11 +165,11 @@ async fn test_p0_deps_uses_cache() {
 
     // Now test deps with cache
     let deps_input = DepsInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         schema: Some("User".to_string()),
         path: None,
         direction: DepsDirection::Downstream,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
     };
 
@@ -182,13 +188,13 @@ async fn test_p0_deps_uses_cache() {
 
 #[tokio::test]
 async fn test_p0_generate_uses_cache() {
-    cleanup_cache();
+    let dir = setup_test_dir();
 
     // First, create cache via parse
     let parse_input = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Summary,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
         ttl_seconds: None,
         limit: None,
@@ -200,12 +206,12 @@ async fn test_p0_generate_uses_cache() {
 
     // Now test generate with cache
     let generate_input = GenerateInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         target: GenerateTarget::TypescriptTypes,
         style: CodeStyle::default(),
         schemas: vec![],
         endpoints: vec![],
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
     };
 
@@ -225,14 +231,14 @@ async fn test_p0_generate_uses_cache() {
 
 #[tokio::test]
 async fn test_cache_performance_improvement() {
-    cleanup_cache();
+    let dir = setup_test_dir();
 
     // First parse - cold (no cache)
     let start1 = std::time::Instant::now();
     let input1 = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Full,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
         ttl_seconds: None,
         limit: None,
@@ -246,9 +252,9 @@ async fn test_cache_performance_improvement() {
     // Second parse - warm (with cache)
     let start2 = std::time::Instant::now();
     let input2 = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Full,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
         ttl_seconds: None,
         limit: None,
@@ -271,13 +277,13 @@ async fn test_cache_performance_improvement() {
 
 #[tokio::test]
 async fn test_p3_zero_parse_caching() {
-    cleanup_cache();
+    let dir = setup_test_dir();
 
     // First parse - creates cache with parsed_spec
     let input1 = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Full,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
         ttl_seconds: None,
         limit: None,
@@ -289,7 +295,7 @@ async fn test_p3_zero_parse_caching() {
     assert!(result1.success);
 
     // Verify cache file contains parsed_spec
-    let cache_content = std::fs::read_to_string(cache_file_path()).unwrap();
+    let cache_content = std::fs::read_to_string(cache_path(&dir)).unwrap();
     let cache: serde_json::Value = serde_json::from_str(&cache_content).unwrap();
 
     assert!(
@@ -313,9 +319,9 @@ async fn test_p3_zero_parse_caching() {
 
     // Second parse - should use parsed_spec directly (zero parsing)
     let input2 = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Full,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
         ttl_seconds: None,
         limit: None,
@@ -343,13 +349,13 @@ async fn test_p3_zero_parse_caching() {
 
 #[tokio::test]
 async fn test_schema_version_invalidation() {
-    cleanup_cache();
+    let dir = setup_test_dir();
 
     // First parse - creates cache with current schema_version
     let input1 = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Full,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
         ttl_seconds: None,
         limit: None,
@@ -361,13 +367,13 @@ async fn test_schema_version_invalidation() {
     assert!(result1.success);
 
     // Verify cache has schema_version
-    let cache_path = cache_file_path();
+    let cp = cache_path(&dir);
     assert!(
-        cache_path.exists(),
+        cp.exists(),
         "Cache file should exist after parsing: {:?}",
-        cache_path
+        cp
     );
-    let cache_content = std::fs::read_to_string(&cache_path).unwrap();
+    let cache_content = std::fs::read_to_string(&cp).unwrap();
     let cache: serde_json::Value = serde_json::from_str(&cache_content).unwrap();
     let current_version = cache["schema_version"].as_u64().unwrap();
     assert!(current_version > 0, "schema_version should be set");
@@ -375,17 +381,13 @@ async fn test_schema_version_invalidation() {
     // Modify schema_version to simulate incompatible cache
     let mut modified_cache: serde_json::Value = serde_json::from_str(&cache_content).unwrap();
     modified_cache["schema_version"] = serde_json::Value::Number(serde_json::Number::from(999u64));
-    std::fs::write(
-        cache_file_path(),
-        serde_json::to_string_pretty(&modified_cache).unwrap(),
-    )
-    .unwrap();
+    std::fs::write(&cp, serde_json::to_string_pretty(&modified_cache).unwrap()).unwrap();
 
     // Second parse - should invalidate cache due to schema_version mismatch
     let input2 = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Full,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
         ttl_seconds: None,
         limit: None,
@@ -397,7 +399,7 @@ async fn test_schema_version_invalidation() {
     assert!(result2.success, "Should succeed with fresh fetch");
 
     // Verify cache was updated with correct schema_version
-    let updated_cache_content = std::fs::read_to_string(cache_file_path()).unwrap();
+    let updated_cache_content = std::fs::read_to_string(&cp).unwrap();
     let updated_cache: serde_json::Value = serde_json::from_str(&updated_cache_content).unwrap();
     let updated_version = updated_cache["schema_version"].as_u64().unwrap();
     assert_eq!(
@@ -410,13 +412,13 @@ async fn test_schema_version_invalidation() {
 
 #[tokio::test]
 async fn test_hash_integrity_check() {
-    cleanup_cache();
+    let dir = setup_test_dir();
 
     // First parse - creates cache
     let input1 = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Full,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
         ttl_seconds: None,
         limit: None,
@@ -428,20 +430,17 @@ async fn test_hash_integrity_check() {
     assert!(result1.success);
 
     // Corrupt the spec_hash to simulate corrupted cache
-    let cache_content = std::fs::read_to_string(cache_file_path()).unwrap();
+    let cp = cache_path(&dir);
+    let cache_content = std::fs::read_to_string(&cp).unwrap();
     let mut modified_cache: serde_json::Value = serde_json::from_str(&cache_content).unwrap();
     modified_cache["spec_hash"] = serde_json::Value::String("corrupted_hash".to_string());
-    std::fs::write(
-        cache_file_path(),
-        serde_json::to_string_pretty(&modified_cache).unwrap(),
-    )
-    .unwrap();
+    std::fs::write(&cp, serde_json::to_string_pretty(&modified_cache).unwrap()).unwrap();
 
     // Second parse - should detect hash mismatch and fetch fresh
     let input2 = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Full,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
         ttl_seconds: None,
         limit: None,
@@ -456,7 +455,7 @@ async fn test_hash_integrity_check() {
     );
 
     // Verify cache was updated with correct hash
-    let updated_cache_content = std::fs::read_to_string(cache_file_path()).unwrap();
+    let updated_cache_content = std::fs::read_to_string(&cp).unwrap();
     let updated_cache: serde_json::Value = serde_json::from_str(&updated_cache_content).unwrap();
     assert_ne!(
         updated_cache["spec_hash"].as_str().unwrap(),
@@ -470,13 +469,13 @@ async fn test_hash_integrity_check() {
 /// Test all tools work correctly with cached parsed_spec
 #[tokio::test]
 async fn test_all_tools_with_cached_parsed_spec() {
-    cleanup_cache();
+    let dir = setup_test_dir();
 
     // Step 1: Create cache via parse
     let parse_input = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Full,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
         ttl_seconds: None,
         limit: None,
@@ -489,7 +488,7 @@ async fn test_all_tools_with_cached_parsed_spec() {
     println!("✓ Step 1: Cache created via oas_parse");
 
     // Verify cache has parsed_spec
-    let cache_content = std::fs::read_to_string(cache_file_path()).unwrap();
+    let cache_content = std::fs::read_to_string(cache_path(&dir)).unwrap();
     let cache: serde_json::Value = serde_json::from_str(&cache_content).unwrap();
     assert!(
         cache["parsed_spec"].is_object(),
@@ -498,9 +497,9 @@ async fn test_all_tools_with_cached_parsed_spec() {
 
     // Step 2: Test oas_parse with cache hit
     let parse_input2 = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Endpoints,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
         ttl_seconds: None,
         limit: None,
@@ -520,11 +519,11 @@ async fn test_all_tools_with_cached_parsed_spec() {
 
     // Step 3: Test oas_deps with cache hit
     let deps_input = DepsInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         schema: Some("User".to_string()),
         path: None,
         direction: DepsDirection::Downstream,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
     };
     let deps_result = query_deps(deps_input).await;
@@ -540,12 +539,12 @@ async fn test_all_tools_with_cached_parsed_spec() {
 
     // Step 4: Test oas_generate with cache hit
     let generate_input = GenerateInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         target: GenerateTarget::TypescriptTypes,
         style: CodeStyle::default(),
         schemas: vec![],
         endpoints: vec![],
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
     };
     let generate_result = generate_code(generate_input).await;
@@ -571,9 +570,9 @@ async fn test_all_tools_with_cached_parsed_spec() {
     ];
     for (name, format) in formats {
         let input = ParseInput {
-            source: test_spec_path(),
+            source: spec_path(&dir),
             format,
-            project_dir: Some(test_project_dir()),
+            project_dir: Some(project_dir(&dir)),
             use_cache: true,
             ttl_seconds: None,
             limit: None,
@@ -596,14 +595,14 @@ async fn test_all_tools_with_cached_parsed_spec() {
 /// Verify cache is actually being used (not just re-parsing every time)
 #[tokio::test]
 async fn test_verify_cache_actually_used() {
-    cleanup_cache();
+    let dir = setup_test_dir();
 
     // 1. Cold start - no cache
     let start1 = std::time::Instant::now();
     let input1 = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Full,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: true,
         ttl_seconds: None,
         limit: None,
@@ -616,16 +615,16 @@ async fn test_verify_cache_actually_used() {
     println!("❄️  Cold (no cache): {:?}", cold_time);
 
     // Verify cache was created
-    assert!(cache_file_path().exists(), "Cache file should be created");
+    assert!(cache_path(&dir).exists(), "Cache file should be created");
 
     // 2. Warm start - should use cache (much faster)
     let mut warm_times = Vec::new();
     for _ in 0..10 {
         let start = std::time::Instant::now();
         let input = ParseInput {
-            source: test_spec_path(),
+            source: spec_path(&dir),
             format: ParseFormat::Full,
-            project_dir: Some(test_project_dir()),
+            project_dir: Some(project_dir(&dir)),
             use_cache: true,
             ttl_seconds: None,
             limit: None,
@@ -642,9 +641,9 @@ async fn test_verify_cache_actually_used() {
     // 3. No cache - should be slow like cold
     let start3 = std::time::Instant::now();
     let input3 = ParseInput {
-        source: test_spec_path(),
+        source: spec_path(&dir),
         format: ParseFormat::Full,
-        project_dir: Some(test_project_dir()),
+        project_dir: Some(project_dir(&dir)),
         use_cache: false, // Disabled!
         ttl_seconds: None,
         limit: None,
